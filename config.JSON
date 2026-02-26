@@ -4,9 +4,9 @@
 
     "L1":    ["DATE", "MONTH", "DAY", "YEAR"],
     "L2":    ["SELECT", "GH", "TNFT"],
-    "L3":    ["RANGE", 1, 34],
+    "L3":    ["NUMERIC", 1, 34],
     "L4":    ["SELECT", "FLB", "CAB", "SGC", "M3", "M85", "M473"],
-    "L5":    ["RANGE", 1, 120],
+    "L5":    ["NUMERIC", 1, 120],
 
     "YEAR": [2024, 2025],
     "MONTH": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -64,7 +64,7 @@
 
     "SAVE_DEBUG": false,                            
     "SAVE_OVERLAYS": true,
-    "SAVE_ML_DATA": true,
+    "SAVE_ML_DATA": false,
     "RENAME_EXISTING_FILE": true,
 
     "BACKUP_LEAF_AREA": false,
@@ -81,15 +81,20 @@
   },
     "SEG": {
     "BACKGROUND_COLOR": "",
-    "HSV_S_MIN": 60,
-    "HSV_V_MIN": 80, 
-    "HSV_BLACK_V_MAX": 20,
-    "PURPLE_S_MIN": 50,
-    "PURPLE_V_MIN": 70,
-    "LAB_A_MAX": 8,
-    "LAB_B_MAX": 100,
-    "LAB_NEUTRAL_EXCLUDE": true,
-    "LAB_NEUTRAL_A_ABS_MAX": 1,
-    "LAB_NEUTRAL_B_ABS_MAX": 1
+
+    "GREEN_H_MIN": 38,
+    "GREEN_H_MAX": 78,
+    "GREEN_V_MIN": 60,
+    "YELLOW_H_MIN": 20,
+    "YELLOW_H_MAX": 40,
+    "BLACK_V_MIN": 0,
+    "BLACK_V_MAX": 35,
+    "WHITE_S_MIN": 0,
+    "WHITE_S_MAX": 25,
+    "WHITE_V_MIN": 200,
+    "WHITE_V_MAX": 255,
+    
+    "NOISE_CM2": 0.038,
+    "MIN_LEAF_CM2": 0.04        
   }
 }

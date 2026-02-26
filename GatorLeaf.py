@@ -26,10 +26,9 @@ import datetime as dt
 import json
 import shutil
 from typing import Optional
-import ctypes
-import ctypes.util
 import subprocess
 import re
+
 
 # Global variables for persistent settings
 _persistent_date = None
@@ -49,6 +48,17 @@ DEFAULT_DATE_YYYY_MM_DD = "__/__/__"  # placeholder for missing date; displayed 
 # ------------------------------------------------------------------------------------------
 # ENVIRONMENT/FILE DETECTION UTILITIES 
 # ------------------------------------------------------------------------------------------
+
+
+# Helper: zero-pad numbers based on the largest value in a range
+def format_number_with_padding(num, min_range, max_range):
+    """
+    Return the number as a string, zero-padded to the width of the largest value in the range.
+    Example: format_number_with_padding(3, 1, 120) -> '003'
+             format_number_with_padding(345, 300, 80000) -> '00345'
+    """
+    width = max(len(str(min_range)), len(str(max_range)))
+    return str(num).zfill(width)
 
 # Detect if running as a compiled executable
 
@@ -280,7 +290,7 @@ CONFIG = {
         
         # AI Training Data Subdirectories
         "TRAINING_SUBDIR": "ML_Training_Data",  # Root folder for all training artifacts
-        "MASKS_SUBDIR": "Segmentation_Masks",    # Binary leaf masks (PNG)
+        "MASKS_SUBDIR": "Binary_Masks",         # Binary leaf masks (PNG)
         "CONTOURS_SUBDIR": "Leaf_Contours",      # Individual leaf contours (JSON + visualization)
         "OBJECTS_SUBDIR": "Object_Annotations",  # Calibration card and label annotations
         "YOLO_SUBDIR": "YOLO",                   # YOLO format bounding boxes (TXT)
@@ -349,12 +359,18 @@ CONFIG = {
     "SEG": {
         # ==================================================================================
         # Base HSV Thresholds (Applied to ALL pixels before hue filtering)
+        # Now using min/max pairs for all relevant thresholds
         # ==================================================================================
-        "HSV_S_MIN": 45,              # Min saturation (0-255). Lower=includes gray/brown, Higher=only vivid colors. Blocks black background
-        "HSV_V_MIN": 65,              # Min brightness (0-255). Lower=includes dark/shadowed areas, Higher=only bright areas. Blocks black background
-        "HSV_BLACK_V_MAX": 35,        # Max brightness for black exclusion (0-255). Lower=stricter black removal, Higher=more permissive
-        "HSV_WHITE_S_MAX": 25,        # Max saturation for white exclusion (0-255). Lower=only pure white excluded, Higher=pale colors excluded
-        "HSV_WHITE_V_MIN": 200,       # Min brightness for white exclusion (0-255). Lower=dimmer whites excluded, Higher=only bright whites excluded
+        "HSV_S_MIN": 45,              # (Legacy, for backward compatibility)
+        "HSV_S_MAX": 255,             # Max saturation (0-255)
+        "HSV_V_MIN": 65,              # (Legacy, for backward compatibility)
+        "HSV_V_MAX": 255,             # Max brightness (0-255)
+        "BLACK_V_MIN": 0,             # Min brightness for black exclusion (0-255)
+        "BLACK_V_MAX": 35,            # Max brightness for black exclusion (0-255)
+        "WHITE_S_MIN": 0,             # Min saturation for white exclusion (0-255)
+        "WHITE_S_MAX": 25,            # Max saturation for white exclusion (0-255)
+        "WHITE_V_MIN": 200,           # Min brightness for white exclusion (0-255)
+        "WHITE_V_MAX": 255,           # Max brightness for white exclusion (0-255)
         "BLUE_EXCLUDE": True,         # Exclude blue hues (leaves are rarely blue)
         "BLUE_H_MIN": 90,             # Blue hue start (0-180)
         "BLUE_H_MAX": 130,            # Blue hue end (0-180)
@@ -387,14 +403,6 @@ CONFIG = {
         "PURPLE_V_MIN": 55,           # Min brightness for purple (0-255). HIGHER than HSV_V_MIN to block dark background
         
         # ==================================================================================
-        # White Stem Detection (Captures pale/white stems near leaf edges)
-        # ==================================================================================
-        "WHITE_STEM_INCLUDE": False,  # Enable white stem detection. False=stems must be green to be included
-        "WHITE_S_MAX": 65,            # Max saturation for stems (0-255). Lower=only pure white, Higher=pale green stems too
-        "WHITE_V_MIN": 140,           # Min brightness for stems (0-255). Lower=dimmer stems included, Higher=only bright stems
-        "WHITE_MERGE_WITHIN_CM": 0.25,  # Search radius for stems near leaves (cm). Larger=finds stems farther from edges, Smaller=only very close stems
-        
-        # ==================================================================================
         # Lab Color Space Gating (Additional color filtering in L*a*b* space)
         # ==================================================================================
         "LAB_GATE": True,             # Enable Lab filtering. False=skip Lab checks (faster but less selective)
@@ -410,7 +418,7 @@ CONFIG = {
         "OPEN_DIAMETER_CM": 0.045,   # Opening kernel size (cm). Smaller=keeps thin stems, Larger=removes small noise/specks
         "CLOSE_DIAMETER_CM": 0.015,   # Closing kernel size (cm). Smaller=preserves fine details, Larger=bridges gaps in leaves
         "CLOSE_BRIDGE_CM": 0.015,     # Bridge-closing kernel (cm). Smaller=fewer connections, Larger=connects separated leaf parts
-        "REOPEN_CM": 0.030,           # Final opening to restore edges (cm). Smaller=sharper edges, Larger=smoother edges
+        "REOPEN_CM": 0.015,           # Final opening to restore edges (cm). Smaller=sharper edges, Larger=smoother edges
         "FILL_HOLES": True,           # Fill enclosed holes in leaves. False=keeps interior voids (useful for some leaf types)
         "HOLE_MAX_CM2": 0.50,         # Max hole size to fill (cm²). Smaller=only tiny holes filled, Larger=fills big interior gaps. 0=fill all holes
         
@@ -418,10 +426,10 @@ CONFIG = {
         # Size Thresholds (Component filtering by area)
         # CRITICAL: Must follow hierarchy: NOISE_CM2 < TINY_FRAGMENT_CM2 < MIN_LEAF_CM2
         # ==================================================================================
-        "NOISE_CM2": 0.065,           # Immediate removal threshold (cm²). Components smaller than this are deleted as noise
+        "NOISE_CM2": 0.038,           # Immediate removal threshold (cm²). Components smaller than this are deleted as noise
                                       # Lower=keeps more small bits, Higher=removes more specks
         
-        "TINY_FRAGMENT_CM2": 0.045,   # Mergeable fragment size (cm²). Fragments this size can merge into nearby large leaves
+        "TINY_FRAGMENT_CM2": 0.039,   # Mergeable fragment size (cm²). Fragments this size can merge into nearby large leaves
                                       # Lower=merges smaller pieces, Higher=only merges bigger fragments
                                       # MUST BE: NOISE_CM2 < TINY_FRAGMENT_CM2 < MIN_LEAF_CM2
         
@@ -429,12 +437,12 @@ CONFIG = {
                                       # Lower=keeps small leaves, Higher=only large leaves in final output
                                       # MUST BE LARGER THAN TINY_FRAGMENT_CM2
         
-        "MERGE_SMALL_WITHIN_CM": 0.10,  # Search distance for merging fragments (cm). Larger=merges fragments farther away, Smaller=only very close fragments merge
+        "MERGE_SMALL_WITHIN_CM": 0.04,  # Search distance for merging fragments (cm). Larger=merges fragments farther away, Smaller=only very close fragments merge
         
         # ==================================================================================
         # Performance
         # ==================================================================================
-        "FAST_MAX_WIDTH": 1600,        # Downscale images wider than this for speed (pixels). 0=disable downscaling (slower but more accurate)
+        "FAST_MAX_WIDTH": 5000,        # Downscale images wider than this for speed (pixels). 0=disable downscaling (slower but more accurate)
         "SKIP_MEDIAN": True,           # Skip median blur on HSV channels. True=faster, False=smoother but slower
     },
     
@@ -449,9 +457,9 @@ CONFIG = {
         "HEADLESS": False,                # Run without UI windows. True=no display (for servers), False=show windows
         "INTERACTIVE_CALIB": True,        # Use manual calibration workflow. False=requires pre-calibrated images
         "SELECT_MASKS": True,             # Enable manual label/bag masking. False=skip mask selection
-        "SAVE_RENAMED_COPIES": True,      # Save renamed image copies. True=duplicate to Renamed_Images/, False=rename in place
+        "SAVE_RENAMED_COPIES": False,     # Save renamed image copies. True=duplicate to Renamed_Images/, False=rename in place
         "MANUAL_LABEL_EXCLUSION": True,   # Allow manual exclusion of labels/bags. False=auto-exclude calibration card only
-        "SAVE_ML_TRAINING_DATA": True,   # Generate AI training files. False=skip all training data generation (faster)
+        "SAVE_ML_TRAINING_DATA": True,    # Generate AI training files. False=skip all training data generation (faster)
     },
     
     # ======================================================================================
@@ -604,6 +612,46 @@ CONFIG = {
 
 
 # Centralized OpenCV font mapping and access helper
+
+# =====================
+# Helper: min/max range check
+def _in_range(val, minv, maxv):
+    """Helper: check if val is in [minv, maxv] inclusive. Supports numpy arrays."""
+    import numpy as np
+    return np.logical_and(val >= minv, val <= maxv)
+
+# Example: segmentation mask creation using min/max pairs
+def segment_leaf_mask(hsv_img, config):
+    """Segment leaf mask using min/max pairs from config['SEG']."""
+    import numpy as np
+    import cv2 as cv
+    seg = config["SEG"]
+    # HSV base thresholds
+    s_min = seg.get("HSV_S_MIN", 0)
+    s_max = seg.get("HSV_S_MAX", 255)
+    v_min = seg.get("HSV_V_MIN", 0)
+    v_max = seg.get("HSV_V_MAX", 255)
+    # Black exclusion
+    black_v_min = seg.get("BLACK_V_MIN", 0)
+    black_v_max = seg.get("BLACK_V_MAX", 35)
+    # White exclusion
+    white_s_min = seg.get("WHITE_S_MIN", 0)
+    white_s_max = seg.get("WHITE_S_MAX", 25)
+    white_v_min = seg.get("WHITE_V_MIN", 200)
+    white_v_max = seg.get("WHITE_V_MAX", 255)
+
+    # Create masks for each exclusion
+    h, s, v = cv.split(hsv_img)
+    # Main HSV mask (in S/V range)
+    mask_hsv = np.logical_and(_in_range(s, s_min, s_max), _in_range(v, v_min, v_max))
+    # Black exclusion mask
+    mask_black = _in_range(v, black_v_min, black_v_max)
+    # White exclusion mask
+    mask_white = np.logical_and(_in_range(s, white_s_min, white_s_max), _in_range(v, white_v_min, white_v_max))
+    # Combine masks: keep only pixels in main HSV mask, not in black/white exclusion
+    mask = np.logical_and(mask_hsv, np.logical_not(mask_black))
+    mask = np.logical_and(mask, np.logical_not(mask_white))
+    return mask.astype(np.uint8) * 255
 _FONT_MAP = {
     "HERSHEY_SIMPLEX": cv.FONT_HERSHEY_SIMPLEX,
     "HERSHEY_PLAIN": cv.FONT_HERSHEY_PLAIN,
@@ -744,7 +792,7 @@ def format_label_value_for_csv(label_name, value, date_data_fmt):
         return value
     if ftype == "TIME":
         return _format_time_value(value)
-    if ftype == "RANGE":
+    if ftype == "NUMERIC":
         try:
             return float(value)
         except Exception:
@@ -845,7 +893,15 @@ def build_folder_name_from_pattern(date_yyyy_mm_dd, pattern=None, label_info=Non
     # Copy all label fields so custom tokens can resolve
     if isinstance(label_info, dict):
         for k, v in label_info.items():
-            if _is_date_label_name(k):
+            # Check if this label is NUMERIC and has min/max in schema
+            field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == k), None)
+            if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
+                minv, maxv = field_cfg.get("min", 1), field_cfg.get("max", 1)
+                try:
+                    vals[k] = format_number_with_padding(int(v), minv, maxv)
+                except Exception:
+                    vals[k] = v
+            elif _is_date_label_name(k):
                 canon = normalize_date_string(v)
                 vals[k] = format_date_with_pattern(canon, out_date_fmt) if canon else v
             else:
@@ -858,7 +914,14 @@ def build_folder_name_from_pattern(date_yyyy_mm_dd, pattern=None, label_info=Non
             for i, nm in enumerate(labels, start=1):
                 if nm in label_info:
                     v = label_info.get(nm)
-                    if _is_date_label_name(nm):
+                    field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == nm), None)
+                    if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
+                        minv, maxv = field_cfg.get("min", 1), field_cfg.get("max", 1)
+                        try:
+                            vals[f"L{i}"] = format_number_with_padding(int(v), minv, maxv)
+                        except Exception:
+                            vals[f"L{i}"] = v
+                    elif _is_date_label_name(nm):
                         canon = normalize_date_string(v)
                         vals[f"L{i}"] = format_date_with_pattern(canon, out_date_fmt) if canon else v
                     else:
@@ -973,7 +1036,14 @@ def build_filename_generic(date_yyyy_mm_dd, label_info, pattern):
             for i, nm in enumerate(labels, start=1):
                 if nm in label_info:
                     v = label_info.get(nm)
-                    if _is_date_label_name(nm):
+                    field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == nm), None)
+                    if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
+                        minv, maxv = field_cfg.get("min", 1), field_cfg.get("max", 1)
+                        try:
+                            vals[f"L{i}"] = format_number_with_padding(int(v), minv, maxv)
+                        except Exception:
+                            vals[f"L{i}"] = v
+                    elif _is_date_label_name(nm):
                         canon = normalize_date_string(v)
                         vals[f"L{i}"] = format_date_with_pattern(canon, out_date_fmt) if canon else v
                     else:
@@ -983,7 +1053,14 @@ def build_filename_generic(date_yyyy_mm_dd, label_info, pattern):
 
     # Copy all other label fields to vals so pattern tokens can resolve
     for k, v in label_info.items():
-        if _is_date_label_name(k):
+        field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == k), None)
+        if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
+            minv, maxv = field_cfg.get("min", 1), field_cfg.get("max", 1)
+            try:
+                vals[k] = format_number_with_padding(int(v), minv, maxv)
+            except Exception:
+                vals[k] = v
+        elif _is_date_label_name(k):
             canon = normalize_date_string(v)
             vals[k] = format_date_with_pattern(canon, out_date_fmt) if canon else v
         else:
@@ -1008,7 +1085,7 @@ def normalize_dynamic_schema():
     """Normalize dynamic field schema from CONFIG['INPUTS'] using LABELS + L1..Ln definitions.
 
     Produces CONFIG['SCHEMA_FIELDS'] = [
-        { 'name': str, 'type': 'DATE'|'SELECT'|'RANGE'|'TIME', 'options': [...], 'min': int, 'max': int, 'colors': {option: (B,G,R)} }
+        { 'name': str, 'type': 'DATE'|'SELECT'|'NUMERIC'|'TIME', 'options': [...], 'min': int, 'max': int, 'colors': {option: (B,G,R)} }
     ]
 
     Resolves each label name from `INPUTS.LABELS`, then maps ordinal L-index to a definition in `INPUTS.L{i}`.
@@ -1052,7 +1129,7 @@ def normalize_dynamic_schema():
                         if bc:
                             mapped[opt] = bc
                     entry["colors"] = mapped
-            elif type_token == "RANGE":
+            elif type_token == "NUMERIC":
                 try:
                     if len(fcfg) >= 3:
                         entry["min"] = int(fcfg[1]); entry["max"] = int(fcfg[2])
@@ -1084,7 +1161,7 @@ def normalize_dynamic_schema():
             if ftype == "SELECT":
                 entry["options"] = fcfg.get("OPTIONS") or fcfg.get("VALUES") or []
                 entry["colors"] = fcfg.get("COLORS") or {}
-            elif ftype == "RANGE":
+            elif ftype == "NUMERIC":
                 if fcfg.get("MIN") is not None:
                     entry["min"] = int(fcfg.get("MIN"))
                 if fcfg.get("MAX") is not None:
@@ -1444,7 +1521,7 @@ def show_startup_window(message="Starting GatorLeaf..."):
 def create_window_pair(img, panel_title):
     """Create and position reference image + panel window pair using CONFIG."""
     image_window = f"Reference Image - {panel_title}"
-    panel_window = f"{panel_title} Panel"
+    panel_window = f"{panel_title} Window"
     
     # Display reference image
     display_img = _fit_for_reference(img)
@@ -1640,7 +1717,7 @@ def calculate_dynamic_panel_size(title, subtitle, items, extra_content_height=0,
             item_width, _ = calculate_text_size(str(item), BUTTON_FONT_SIZE, 1)
             max_content_width = max(max_content_width, item_width)
     
-    # Panel width: content + margins + padding
+    # Window width: content + margins + padding
     panel_width = max_content_width + (margin * 4)  # Extra margin for button padding
     panel_width = max(ui.get("PANEL_MIN_WIDTH", 400), min(panel_width, ui.get("PANEL_MAX_WIDTH", 600)))
     
@@ -1845,7 +1922,7 @@ def _instruction_text_block_height(scale_factor):
 def _get_button_instruction_gap_unscaled():
     """Return the unscaled gap between the bottom button and instructions.
 
-    This is shared by all panel styles (SELECT, RANGE, DATE grid) so that the
+    This is shared by all panel styles (SELECT, NUMERIC, DATE grid) so that the
     distance from the last button to the instruction text is consistent.
     Controlled primarily by UI.BUTTON_INSTRUCTION_GAP, falling back to the
     older LIST_BOTTOM_GAP / GRID_BOTTOM_GAP settings if not present.
@@ -2216,9 +2293,9 @@ def create_selection_interface(img, title, subtitle, items, layout_config,
     panel_width, panel_height = _fit_panel_to_screen(panel_width, panel_height, margin_ratio=0.9)
 
     if suppress_reference:
-        # Panel-only mode (no reference image window); sanitize window name to avoid issues with newlines
+        # Window-only mode (no reference image window); sanitize window name to avoid issues with newlines
         safe_title = title.replace("\n", " ") if isinstance(title, str) else str(title)
-        panel_window = f"{safe_title} Panel"
+        panel_window = f"{safe_title} Window"
         hires_panel, _ = create_high_dpi_panel(panel_width, panel_height, scale_factor)
         current_y = draw_hires_panel_header(hires_panel, title, subtitle, scale_factor, CONFIG.get("UI", {}).get("MARGIN", 18))
 
@@ -2610,7 +2687,7 @@ def _get_date_visual(img, filename, base_anchor=None, panel_width_override=None)
 
 def _get_Sample_Num_visual(img, field_name, image_window=None, panel_pos=None,
                            close_image_window=True, max_panel_width=None):
-    """Generic numeric RANGE input with optional Skip; supports a min-max range and a persistent warning below Skip.
+    """Generic numeric NUMERIC input with optional Skip; supports a min-max range and a persistent warning below Skip.
 
     Args:
         img: The image to display
@@ -2625,7 +2702,7 @@ def _get_Sample_Num_visual(img, field_name, image_window=None, panel_pos=None,
     max_allowed = None
     try:
         field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == field_name), None)
-        if field_cfg and str(field_cfg.get("type")).upper() == "RANGE":
+        if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
             min_allowed = field_cfg.get("min")
             max_allowed = field_cfg.get("max")
     except Exception:
@@ -2635,7 +2712,7 @@ def _get_Sample_Num_visual(img, field_name, image_window=None, panel_pos=None,
     if min_allowed > max_allowed:
         min_allowed, max_allowed = max_allowed, min_allowed
 
-    panel_window = f"{field_name} Panel"
+    panel_window = f"{field_name} Window"
     # Use provided panel_pos or fall back to default
     if panel_pos is None:
         panel_pos = CONFIG["UI"].get("DEFAULT_WINDOW_POSITION", (0, 0))
@@ -2651,7 +2728,7 @@ def _get_Sample_Num_visual(img, field_name, image_window=None, panel_pos=None,
     )
     # Screen-fit to avoid oversized panels
     panel_width, panel_height = _fit_panel_to_screen(panel_width, panel_height)
-    # Never allow this RANGE panel to exceed an optional maximum (e.g.,
+    # Never allow this NUMERIC panel to exceed an optional maximum (e.g.,
     # the width of the Image Label window) while still respecting
     # global UI min/max bounds enforced in calculate_dynamic_panel_size.
     try:
@@ -2740,7 +2817,7 @@ def _get_Sample_Num_visual(img, field_name, image_window=None, panel_pos=None,
             # Show
             display_panel = show_hires_panel(panel_window, hires_panel, panel_width, panel_height)
             # Keep the X anchor fixed (to match the Image Label's left
-            # edge) and clamp only Y so the RANGE panel stays on-screen.
+            # edge) and clamp only Y so the NUMERIC panel stays on-screen.
             pw, ph = display_panel.shape[1], display_panel.shape[0]
             px, py = panel_pos
             try:
@@ -2790,7 +2867,8 @@ def _get_Sample_Num_visual(img, field_name, image_window=None, panel_pos=None,
                             if close_image_window and image_window:
                                 cv.destroyWindow(image_window)
                             cv.destroyWindow(panel_window)
-                            return selected_num
+                            # Return zero-padded string for numeric label
+                            return format_number_with_padding(selected_num, min_allowed, max_allowed)
                         else:
                             persistent_warning_msg = f"Must be {min_allowed}-{max_allowed}"
                             render_panel(persistent_warning_msg, field_color=tuple(CONFIG.get("UI", {}).get("BTN_RED", (0, 0, 255))))
@@ -2839,7 +2917,7 @@ def _get_generic_select_visual(img, field_name, options,
     Note: Does NOT open a new reference image window; reuses the existing one by positioning panel at base_anchor.
     """
     scale_factor = _get_hidpi_scale()
-    panel_window = f"Select: {field_name}"
+    panel_window = f"{field_name}"
     panel_pos = base_anchor if base_anchor else CONFIG["UI"].get("DEFAULT_WINDOW_POSITION", (0, 0))
     button_texts = list(options)[:]
     # Ensure a Skip option is always present
@@ -2850,7 +2928,7 @@ def _get_generic_select_visual(img, field_name, options,
     # between the title and the first row of buttons.
     extra_content_height = CONFIG["UI"].get("PANEL_CONTENT_PADDING", 20)
     panel_width, panel_height = calculate_dynamic_panel_size(
-        f"Select: {field_name}", "", button_texts, extra_content_height, scale_factor
+        f"{field_name}", "", button_texts, extra_content_height, scale_factor
     )
     panel_width, panel_height = _fit_panel_to_screen(panel_width, panel_height)
     # Treat panel_width_override as an upper bound so that
@@ -2874,7 +2952,7 @@ def _get_generic_select_visual(img, field_name, options,
 
     def render_panel():
         hires_panel, _ = create_high_dpi_panel(panel_width, panel_height, scale_factor)
-        current_y = draw_hires_panel_header(hires_panel, f"Select: {field_name}", "", scale_factor, margin)
+        current_y = draw_hires_panel_header(hires_panel, f"{field_name}", "", scale_factor, margin)
         click_zones = {}
         # Determine number of columns: prefer layout config if provided, otherwise
         # fall back to the original heuristic (1/2/3 columns by option count).
@@ -2895,7 +2973,7 @@ def _get_generic_select_visual(img, field_name, options,
 
         # Anchor the grid from the bottom so that the bottom-most row of
         # buttons sits a fixed config-driven distance above the instruction
-        # text, matching other SELECT/DATE/RANGE panels.
+        # text, matching other SELECT/DATE/NUMERIC panels.
         panel_height_unscaled = int(hires_panel.shape[0] // max(scale_factor, 1))
         bottom_margin_unscaled = int(ui.get("INSTRUCTION_BOTTOM_MARGIN", margin))
         gap_unscaled = _get_button_instruction_gap_unscaled()
@@ -2977,9 +3055,9 @@ def _get_generic_select_visual(img, field_name, options,
 def _get_generic_range_visual(img, field_name, min_allowed, max_allowed,
                               image_window=None, panel_pos=None,
                               close_image_window=True, max_panel_width=None):
-    """Generic RANGE input panel (numeric); returns int or None.
+    """Generic NUMERIC input panel (numeric); returns int or None.
 
-    The optional max_panel_width can be used to ensure the RANGE window is
+    The optional max_panel_width can be used to ensure the NUMERIC window is
     never wider than a parent panel (e.g., the Image Label review window).
     """
     return _get_Sample_Num_visual(
@@ -3265,7 +3343,7 @@ def _check_update_persistent_data_dynamic(img):
                 sel = _get_generic_select_visual(img, f["name"], f.get("options", []), f.get("colors", {}), base_anchor=anchor_pos, panel_width_override=panel_width)
                 if sel is not None:
                     _persistent_labels[f["name"]] = sel
-            elif f["type"] == "RANGE":
+            elif f["type"] == "NUMERIC":
                 rng = _get_generic_range_visual(
                     img,
                     f["name"],
@@ -3493,7 +3571,7 @@ def parse_metadata_from_filename(file_name):
                             if opts:
                                 alts = "|".join([re.escape(o) for o in opts])
                                 return f"({alts})"
-                        if typ == "RANGE":
+                        if typ == "NUMERIC":
                             return r"(\d+)"
                         if typ == "DATE":
                             return r"([0-9]{2,4}[\-_.\/][0-9]{1,2}[\-_.\/][0-9]{1,2})"
@@ -4152,18 +4230,18 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         # ---- BACKGROUND-ADAPTIVE HSV THRESHOLDS ----
         # Built-in background presets
         BLACK_BACKGROUND_PRESET = {
-            "HSV_BLACK_V_MAX": 25,
-            "HSV_WHITE_S_MAX": 45,
-            "HSV_WHITE_V_MIN": 180,
+            "BLACK_V_MAX": 25,
+            "WHITE_S_MAX": 45,
+            "WHITE_V_MIN": 180,
             "HSV_S_MIN": 55,
             "HSV_V_MIN": 70,
             "LAB_NEUTRAL_A_ABS_MAX": 2,
             "LAB_NEUTRAL_B_ABS_MAX": 2
         }
         WHITE_BACKGROUND_PRESET = {
-            "HSV_BLACK_V_MAX": 45,
-            "HSV_WHITE_S_MAX": 20,
-            "HSV_WHITE_V_MIN": 220,
+            "BLACK_V_MAX": 45,
+            "WHITE_S_MAX": 20,
+            "WHITE_V_MIN": 220,
             "HSV_S_MIN": 35,
             "HSV_V_MIN": 45,
             "LAB_NEUTRAL_A_ABS_MAX": 4,
@@ -4205,12 +4283,17 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         else:
             preset = {}  # Use config defaults for mixed/unknown backgrounds
         
-        # Apply preset values with config fallbacks
+        # Apply preset values with config fallbacks (min/max pairs)
         HSV_S_MIN = int(preset.get("HSV_S_MIN", seg.get("HSV_S_MIN", 30)))
+        HSV_S_MAX = int(preset.get("HSV_S_MAX", seg.get("HSV_S_MAX", 255)))
         HSV_V_MIN = int(preset.get("HSV_V_MIN", seg.get("HSV_V_MIN", 50)))
-        HSV_BLACK_V_MAX = int(preset.get("HSV_BLACK_V_MAX", seg.get("HSV_BLACK_V_MAX", 35)))
-        HSV_WHITE_S_MAX = int(preset.get("HSV_WHITE_S_MAX", seg.get("HSV_WHITE_S_MAX", 35)))
-        HSV_WHITE_V_MIN = int(preset.get("HSV_WHITE_V_MIN", seg.get("HSV_WHITE_V_MIN", 200)))
+        HSV_V_MAX = int(preset.get("HSV_V_MAX", seg.get("HSV_V_MAX", 255)))
+        BLACK_V_MIN = int(preset.get("BLACK_V_MIN", seg.get("BLACK_V_MIN", 0)))
+        BLACK_V_MAX = int(preset.get("BLACK_V_MAX", seg.get("BLACK_V_MAX", 35)))
+        WHITE_S_MIN = int(preset.get("WHITE_S_MIN", seg.get("WHITE_S_MIN", 0)))
+        WHITE_S_MAX = int(preset.get("WHITE_S_MAX", seg.get("WHITE_S_MAX", 35)))
+        WHITE_V_MIN = int(preset.get("WHITE_V_MIN", seg.get("WHITE_V_MIN", 200)))
+        WHITE_V_MAX = int(preset.get("WHITE_V_MAX", seg.get("WHITE_V_MAX", 255)))
         
         # Apply Lab settings from preset if available
         if "LAB_NEUTRAL_A_ABS_MAX" in preset:
@@ -4233,12 +4316,6 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         YELLOW_H_MIN, YELLOW_H_MAX = int(seg.get("YELLOW_H_MIN", 18)), int(seg.get("YELLOW_H_MAX", 48))
         BROWN_H_MIN, BROWN_H_MAX = int(seg.get("BROWN_H_MIN", 8)), int(seg.get("BROWN_H_MAX", 28))
         PURPLE_H_MIN, PURPLE_H_MAX = int(seg.get("PURPLE_H_MIN", 110)), int(seg.get("PURPLE_H_MAX", 160))
-        
-        # ---- IMPROVED white stem parameters ----
-        WHITE_STEM_INCLUDE = bool(seg.get("WHITE_STEM_INCLUDE", False))
-        WHITE_S_MAX = int(seg.get("WHITE_S_MAX", 65))
-        WHITE_V_MIN = int(seg.get("WHITE_V_MIN", 140))
-        WHITE_MERGE_WITHIN_CM = float(seg.get("WHITE_MERGE_WITHIN_CM", 0.40))
         
         # ---- Lab color space gating ----
         LAB_GATE = bool(seg.get("LAB_GATE", True))
@@ -4270,11 +4347,11 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         s_chan = hsv[:, :, 1] if SKIP_MEDIAN else cv.medianBlur(hsv[:, :, 1], 5)
         v_chan = hsv[:, :, 2] if SKIP_MEDIAN else cv.medianBlur(hsv[:, :, 2], 5)
         
-        # Core base mask (strict to block grays/black)
-        colorful = (s_chan >= HSV_S_MIN)
-        bright_enough = (v_chan >= HSV_V_MIN)
-        not_black = (v_chan > HSV_BLACK_V_MAX)
-        not_white = ~((s_chan <= HSV_WHITE_S_MAX) & (v_chan >= HSV_WHITE_V_MIN))
+        # Core base mask (strict to block grays/black) using min/max pairs
+        colorful = (s_chan >= HSV_S_MIN) & (s_chan <= HSV_S_MAX)
+        bright_enough = (v_chan >= HSV_V_MIN) & (v_chan <= HSV_V_MAX)
+        not_black = ~((v_chan >= BLACK_V_MIN) & (v_chan <= BLACK_V_MAX))
+        not_white = ~((s_chan >= WHITE_S_MIN) & (s_chan <= WHITE_S_MAX) & (v_chan >= WHITE_V_MIN) & (v_chan <= WHITE_V_MAX))
         base_keep_strict = (colorful & bright_enough & not_black & not_white)
         
         # Exclude blue hues (leaves are rarely blue)
@@ -4282,8 +4359,9 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         
         # Relaxed path for dark green: allow lower V if hue is green
         GREEN_V_MIN = int(seg.get("GREEN_V_MIN", 60))
+        GREEN_V_MAX = int(seg.get("GREEN_V_MAX", 255))
         green_hue_ok = ((h_chan >= GREEN_H_MIN) & (h_chan <= GREEN_H_MAX))
-        green_relax = (green_hue_ok & (s_chan >= HSV_S_MIN) & (v_chan >= GREEN_V_MIN) & not_black & not_white)
+        green_relax = (green_hue_ok & (s_chan >= HSV_S_MIN) & (s_chan <= HSV_S_MAX) & (v_chan >= GREEN_V_MIN) & (v_chan <= GREEN_V_MAX) & not_black & not_white)
         
         # Combine: strict OR relaxed-green
         base_keep = ((base_keep_strict | green_relax) & (~blue_mask)).astype(np.uint8) * 255
@@ -4293,29 +4371,31 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
             hue_mask = np.zeros_like(base_keep)
             hue_mask = cv.bitwise_or(hue_mask, ((h_chan >= GREEN_H_MIN) & (h_chan <= GREEN_H_MAX)).astype(np.uint8) * 255)
             hue_mask = cv.bitwise_or(hue_mask, ((h_chan >= YELLOW_H_MIN) & (h_chan <= YELLOW_H_MAX)).astype(np.uint8) * 255)
-            
-            # Brown with STRICTER requirements to block dark background
-            BROWN_S_MIN = int(seg.get("BROWN_S_MIN", 35))  # Stricter than HSV_S_MIN
-            BROWN_V_MIN = int(seg.get("BROWN_V_MIN", 75))  # Stricter than HSV_V_MIN
 
+            # Brown with min/max pairs
+            BROWN_S_MIN = int(seg.get("BROWN_S_MIN", 35))
+            BROWN_S_MAX = int(seg.get("BROWN_S_MAX", 255))
+            BROWN_V_MIN = int(seg.get("BROWN_V_MIN", 75))
+            BROWN_V_MAX = int(seg.get("BROWN_V_MAX", 255))
             brown_hue = ((h_chan >= BROWN_H_MIN) & (h_chan <= BROWN_H_MAX))
-            brown_colorful = (s_chan >= BROWN_S_MIN)  # Require more saturation
-            brown_bright = (v_chan >= BROWN_V_MIN)    # Require brighter pixels
+            brown_colorful = (s_chan >= BROWN_S_MIN) & (s_chan <= BROWN_S_MAX)
+            brown_bright = (v_chan >= BROWN_V_MIN) & (v_chan <= BROWN_V_MAX)
             brown_safe = (brown_hue & brown_colorful & brown_bright).astype(np.uint8) * 255
 
             hue_mask = cv.bitwise_or(hue_mask, brown_safe)
-            
-            # Purple with STRICTER requirements to block black background
+
+            # Purple with min/max pairs
             PURPLE_S_MIN = int(seg.get("PURPLE_S_MIN", 40))
+            PURPLE_S_MAX = int(seg.get("PURPLE_S_MAX", 255))
             PURPLE_V_MIN = int(seg.get("PURPLE_V_MIN", 55))
-            
+            PURPLE_V_MAX = int(seg.get("PURPLE_V_MAX", 255))
             purple_hue = ((h_chan >= PURPLE_H_MIN) & (h_chan <= PURPLE_H_MAX))
-            purple_colorful = (s_chan >= PURPLE_S_MIN)
-            purple_bright = (v_chan >= PURPLE_V_MIN)
+            purple_colorful = (s_chan >= PURPLE_S_MIN) & (s_chan <= PURPLE_S_MAX)
+            purple_bright = (v_chan >= PURPLE_V_MIN) & (v_chan <= PURPLE_V_MAX)
             purple_safe = (purple_hue & purple_colorful & purple_bright).astype(np.uint8) * 255
-            
+
             hue_mask = cv.bitwise_or(hue_mask, purple_safe)
-            
+
             maskS = cv.bitwise_and(base_keep, hue_mask)
         else:
             maskS = base_keep
@@ -4339,27 +4419,7 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         # Apply exclusions
         if excludeS is not None:
             maskS = cv.bitwise_and(maskS, cv.bitwise_not(excludeS))
-        
-        # ---- IMPROVED white stem inclusion ----
-        if WHITE_STEM_INCLUDE:
-            # More permissive white/pale stem detection
-            white_cand = ((s_chan <= WHITE_S_MAX) & (v_chan >= WHITE_V_MIN)).astype(np.uint8) * 255
-            
-            # Also include slightly colored but bright areas (pale green stems)
-            pale_stem = ((s_chan <= WHITE_S_MAX + 20) & (v_chan >= WHITE_V_MIN - 30) & 
-                        (h_chan >= GREEN_H_MIN) & (h_chan <= GREEN_H_MAX)).astype(np.uint8) * 255
-            white_cand = cv.bitwise_or(white_cand, pale_stem)
-            
-            if excludeS is not None:
-                white_cand = cv.bitwise_and(white_cand, cv.bitwise_not(excludeS))
-            
-            # Dilate leaf mask to find nearby white regions
-            merge_white_px = max(1, int(round(WHITE_MERGE_WITHIN_CM * px_per_cm)))
-            ker_near = cv.getStructuringElement(cv.MORPH_ELLIPSE, 
-                                               (2 * merge_white_px + 1, 2 * merge_white_px + 1))
-            leaf_nb = cv.dilate(maskS, ker_near, iterations=1)
-            white_near = cv.bitwise_and(white_cand, leaf_nb)
-            maskS = cv.bitwise_or(maskS, white_near)
+    
         
         # ---- Morphological operations ----
         k_open = max(3, int(round(px_per_cm * OPEN_DIAMETER_CM)))
@@ -4681,7 +4741,7 @@ def _add_header_info(overlay, Leaf_Num, total_area_cm2, Pixel_ratio, label_info,
     padding = 30  # extra padding around text
     dynamic_width = max(base_width, max_text_width + padding + panel_margin * 2)
 
-    # Panel height based on number of lines
+    # Window height based on number of lines
     base_height = viz_config["HEADER_PANEL_HEIGHT"]
     # Roughly: top margin + lines * line_height + bottom margin
     dynamic_height = max(base_height, 40 + len(lines) * line_height + 20)
@@ -4949,7 +5009,7 @@ def show_segmentation_confirmation(window_title="Segmentation Confirmation", win
     ESC or Q quits the app.
     """
     scale_factor = _get_hidpi_scale()
-    panel_window = "Segmentation Confirmation Panel"
+    panel_window = "Segmentation Confirmation Window"
     # Labels and return values
     buttons = [
         ("Finish",            "Finish"),
@@ -6038,6 +6098,10 @@ def save_leaf_distribution_csv(results_list, csv_path, debug=None):
 # ----------------------------------------------------------------------------------------------------------------------------------
 def save_ml_annotations(img, leaf_mask, components, Pixel_ratio, label_info, output_dir, filename_base,
                               calib_exclude_mask=None, label_exclude_mask=None, qr_info=None):
+    
+    # Global override: if SAVE_ML_TRAINING_DATA or SAVE_ML_DATA is not True, do nothing
+    if not CONFIG["RUN"].get("SAVE_ML_TRAINING_DATA", CONFIG["RUN"].get("SAVE_ML_DATA", False)):
+        return
     """Save ML/ML training artifacts selectively based on CONFIG['ML_TRAINING_OUTPUTS'] flags.
     Ensures the top-level training directory exists, and uses label_info['New_File'] as base name if present.
     """
