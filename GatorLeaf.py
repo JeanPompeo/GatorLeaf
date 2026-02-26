@@ -285,7 +285,7 @@ CONFIG = {
         
         # Output Subdirectories (created inside DIR_OUTPUTS)
         "OVERLAY_SUBDIR": "Overlays",            # Annotated images with leaf outlines
-        "DEBUG_SUBDIR": "Debug_Panels",          # Two-panel review images (original | mask)
+        "DEBUG_SUBDIR": "Debug",                 # Two-panel review images (original | mask)
         "RENAMED_SUBDIR": "Renamed_Images",      # Copies of images with standardized names
         
         # AI Training Data Subdirectories
@@ -298,7 +298,7 @@ CONFIG = {
         
         # CSV Output Filenames
         "LEAF_AREA_CSV_NAME": "Leaf_Area.csv",             # Main results: total leaf area per sample
-        "LEAF_DIST_CSV_NAME": "Leaf_Distribution.csv",     # Individual leaf sizes (L1, L2, L3...)
+        "LEAF_DIST_CSV_NAME": "Leaf_Distribution.csv",     # Individual leaf areas (L1, L2, L3...)
         "LEAF_LENGTH_CSV_NAME": "Leaf_Length.csv",         # Individual leaf lengths (L1, L2, L3...)
         "LEAF_WIDTH_CSV_NAME": "Leaf_Width.csv",           # Individual leaf widths (L1, L2, L3...)
     },
@@ -451,7 +451,7 @@ CONFIG = {
     # ======================================================================================
     "RUN": {
         "TROUBLESHOOT_MODE": 3,           # Debug verbosity (0-3). 0=silent, 1=errors, 2=warnings, 3=all info
-        "SAVE_DEBUG_IMAGES": True,        # Save two-panel review images (original | mask) to Debug_Panels/
+        "SAVE_DEBUG_IMAGES": True,        # Save two-panel review images (original | mask) to Debug/
         "SAVE_OVERLAYS": True,            # Save annotated images with leaf outlines to Overlays/
         "REVIEW_SEGMENTATION": True,      # Shows interactive window for reviewing segmentation. False=auto-accept all segmentations
         "HEADLESS": False,                # Run without UI windows. True=no display (for servers), False=show windows
@@ -590,9 +590,9 @@ CONFIG = {
 
         # === SIZE-BASED COLORS (BGR format) ===
         "SIZE_COLORS": {
-            "small": (34, 136, 72),         # Green for < 10 cm²
-            "medium": (22, 70, 250),         # Orange for 10-30 cm²
-            "large": (165, 33, 0),         # Blue for >= 30 cm²
+            "small": (0, 250, 250),         # Green for < 10 cm²
+            "medium": (0, 250, 250),         # Orange for 10-30 cm²
+            "large": (0, 250, 250),         # Blue for >= 30 cm²
         },
         # === PANEL COLORS ===
         "PANEL_ALPHA": 0.8,
@@ -957,8 +957,8 @@ def build_output_image_path(date_yyyy_mm_dd, image_pattern, output_subdir, outpu
         if not label_info.get("Date") and label_info.get("Original_Stem"):
             flat_output = True
 
-    # Special behavior for Debug_Panels and Overlays roots
-    debug_root = CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug_Panels")
+    # Special behavior for Debug and Overlays roots
+    debug_root = CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug")
     overlay_root = CONFIG["PATHS"].get("OVERLAY_SUBDIR", "Overlays")
     if output_subdir == debug_root:
         folder_path = os.path.join(outputs_root, debug_root) if flat_output else os.path.join(outputs_root, debug_root, experiment_folder)
@@ -3964,12 +3964,6 @@ def manual_label_exclusion(img, debug: Optional[Debugger] = None, force_select: 
         # Place original image in center
         checkerboard[padding:padding+h, padding:padding+w] = img
         
-       # # Add a border around the original image to help distinguish the edge
-       # cv.rectangle(checkerboard, 
-       #             (padding-2, padding-2), 
-       #             (padding+w+2, padding+h+2), 
-       #             (255, 0, 0), 2)  # Red border
-        
         return checkerboard
 
     disp = create_checkerboard_border(scaled_img, edge_padding)
@@ -4623,22 +4617,24 @@ def _draw_leaf_components(overlay, components, Pixel_ratio):
             color = viz_config["SIZE_COLORS"]["large"]  # Default color
 
         # Draw bounding rectangle
-        _rect(annot, annot_mask, (x, y), (x + w, y + h), color, viz_config["BBOX_THICKNESS"])
+        _rect(annot, annot_mask, (x, y), (x + w, y + h), color, viz_config["BBOX_THICKNESS"] + 3)
 
         # Leaf index in a circle (top-left of bbox, clamped inside image bounds)
         circle_center = (
-            int(max(15, min(x + viz_config["CIRCLE_RADIUS"] + 4, overlay.shape[1] - 15))),
-            int(max(15, min(y + viz_config["CIRCLE_RADIUS"] + 4, overlay.shape[0] - 15)))
+            int(max(15, min(x + viz_config["CIRCLE_RADIUS"] + 6, overlay.shape[1] - 15))),
+            int(max(15, min(y + viz_config["CIRCLE_RADIUS"] + 6, overlay.shape[0] - 15)))
         )
-        circle_radius = viz_config["CIRCLE_RADIUS"]
-        circle_thickness = viz_config["CIRCLE_THICKNESS"]
+        number_scale = 0.6        # was 0.5
+        number_thickness = 2      # was 1
+
+        circle_radius = int(viz_config["CIRCLE_RADIUS"] * 1.4)
+        circle_thickness = int(viz_config["CIRCLE_THICKNESS"] * 1.2)
         _circle(annot, annot_mask, circle_center, circle_radius, color, -1)
         _circle(annot, annot_mask, circle_center, circle_radius, (0, 0, 0), circle_thickness)
-        number_thickness = 1
         text_size = cv.getTextSize(str(i), cv.FONT_HERSHEY_SIMPLEX, 0.5, number_thickness)[0]
         text_x = circle_center[0] - text_size[0] // 2
         text_y = circle_center[1] + text_size[1] // 2
-        _text(annot, annot_mask, str(i), (text_x, text_y), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), number_thickness)
+        _text(annot, annot_mask, str(i), (text_x, text_y), cv.FONT_HERSHEY_SIMPLEX, number_scale, (0, 0, 0), number_thickness)
 
         # Area label
         if Pixel_ratio:
@@ -4670,20 +4666,30 @@ def _draw_leaf_components(overlay, components, Pixel_ratio):
         length_seg = comp.get("length_segment")
         width_seg  = comp.get("width_segment")
 
-        # Length/width text near top of bbox
-        dim_text = f"L={length_cm:.2f}cm W={width_cm:.2f}cm"
-        dim_y = y - 10 if y - 10 > 10 else y + 35
-        _text(annot, annot_mask, dim_text, (x + 5, dim_y),
-              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        # Area/Length/width text near top of bbox
+        dim_text1 = f"A={area_cm2:.2f} sqcm"
+        dim_text2 = f"L={length_cm:.2f} cm"
+        dim_text3 = f"W={width_cm:.2f} cm"
+
+        dim_y1 = y - 10 if y - 10 > 10 else y + 35
+        dim_y2 = y - 30 if y - 30 > -10 else y + 35
+        dim_y3 = y - 50 if y - 50 > -30 else y + 35
+
+        _text(annot, annot_mask, dim_text1, (x + 5, dim_y1),
+              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        _text(annot, annot_mask, dim_text2, (x + 5, dim_y2),
+              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        _text(annot, annot_mask, dim_text3, (x + 5, dim_y3),
+              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         # Draw true length and width segments if available
         if length_seg is not None:
             (lx1, ly1), (lx2, ly2) = length_seg
-            _line(annot, annot_mask, (int(lx1), int(ly1)), (int(lx2), int(ly2)), length_color, 2)
+            _line(annot, annot_mask, (int(lx1), int(ly1)), (int(lx2), int(ly2)), length_color, 5)
 
         if width_seg is not None:
             (wx1, wy1), (wx2, wy2) = width_seg
-            _line(annot, annot_mask, (int(wx1), int(wy1)), (int(wx2), int(wy2)), width_color, 2)
+            _line(annot, annot_mask, (int(wx1), int(wy1)), (int(wx2), int(wy2)), width_color, 5)
 
     # Composite annotations with full opacity
     overlay[annot_mask > 0] = annot[annot_mask > 0]
@@ -4694,7 +4700,7 @@ def _add_header_info(overlay, Leaf_Num, total_area_cm2, Pixel_ratio, label_info,
     panel_margin = viz_config["PANEL_MARGIN"]
     # Header text parameters
     header_font = cv.FONT_HERSHEY_SIMPLEX
-    header_scale = viz_config["HEADER_FONT_SCALE"]
+    header_scale = viz_config["HEADER_FONT_SCALE"] + 0.5
     header_thickness = viz_config["HEADER_THICKNESS"]
     base_line_height = viz_config["HEADER_LINE_HEIGHT"]
     text_h = cv.getTextSize("Ag", header_font, header_scale, header_thickness)[0][1]
@@ -4950,7 +4956,7 @@ def show_segmentation_debug(
         if debug and (debug.save_dir or debug.auto_save or debug.mode >= 2):
             outputs_root = CONFIG["PATHS"].get("DIR_OUTPUTS", get_working_directory())
             file_formats = CONFIG.get("FILE_FORMATS", {})
-            debug_subdir = CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug_Panels")
+            debug_subdir = CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug")
 
             # Extract date for naming; other tokens resolve via label_info
             date_str = None
@@ -4974,7 +4980,7 @@ def show_segmentation_debug(
             if isinstance(label_info, dict):
                 if not label_info.get("Date") and label_info.get("Original_Stem"):
                     flat_output = True
-            if debug_subdir == CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug_Panels"):
+            if debug_subdir == CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug"):
                 folder_path = os.path.join(outputs_root, debug_subdir) if flat_output else os.path.join(outputs_root, debug_subdir, experiment_folder)
             else:
                 folder_path = os.path.join(outputs_root, debug_subdir) if flat_output else os.path.join(outputs_root, experiment_folder, debug_subdir)
@@ -5423,10 +5429,10 @@ def process_folder(folder, out_csv=None, overlay_dir=None, debug: Optional[Debug
         overlay_dir = os.path.join(outputs_root, CONFIG["PATHS"].get("OVERLAY_SUBDIR", "Overlays"))
         os.makedirs(overlay_dir, exist_ok=True)
 
-    # Ensure Debug_Panels dir is available for debug saves
+    # Ensure Debug dir is available for debug saves
     if debug:
         if not debug.save_dir:
-            debug.save_dir = os.path.join(outputs_root, CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug_Panels"))
+            debug.save_dir = os.path.join(outputs_root, CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug"))
         try:
             os.makedirs(debug.save_dir, exist_ok=True)
         except Exception:
@@ -5657,8 +5663,8 @@ def process_with_preset_settings(date_str, label_value, input_path=None, output_
     if overlay_dir:
         os.makedirs(overlay_dir, exist_ok=True)
 
-    # Always prepare Debug_Panels dir inside Outputs (regardless of SAVE_DEBUG_IMAGES)
-    debug_dir = os.path.join(out_root, CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug_Panels"))
+    # Always prepare Debug dir inside Outputs (regardless of SAVE_DEBUG_IMAGES)
+    debug_dir = os.path.join(out_root, CONFIG["PATHS"].get("DEBUG_SUBDIR", "Debug"))
     try:
         os.makedirs(debug_dir, exist_ok=True)
     except Exception:
@@ -5673,7 +5679,7 @@ def process_with_preset_settings(date_str, label_value, input_path=None, output_
         print(f"Error: Input directory does not exist: {src_dir}")
         return []
 
-    # Debugger writing into Outputs/Debug_Panels (save_dir set even if SAVE_DEBUG_IMAGES is False)
+    # Debugger writing into Outputs/Debug (save_dir set even if SAVE_DEBUG_IMAGES is False)
     dbg = Debugger(
         mode=CONFIG["RUN"].get("TROUBLESHOOT_MODE", 3),
         headless=CONFIG["RUN"].get("HEADLESS", False),
