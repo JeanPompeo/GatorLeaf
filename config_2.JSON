@@ -1,0 +1,107 @@
+{
+  "INPUTS": {
+    "LABELS":  ["Location", "Crop", "Row_Number", "Harvest_Date", "Time_of_Day", "Disease?", "Pest?", "Nutrient_Def?"],
+
+    "L1":    ["SELECT", "N", "W", "E", "S", "SE", "SW"],
+    "L2":    ["SELECT", "Potato", "Tomato", "Pepper", "Cucumber", "Eggplant"],
+    "L3":    ["NUMERIC", 15, 105],
+    "L4":    ["DATE", "MONTH", "DAY", "YEAR"],
+    "L5":    ["TIME", "HOUR", "MINUTE", "SECOND"],
+    "L6":    ["SELECT", "Powdery Mildew", "Downy Mildew", "Fusarium", "Leaf Spot"],
+    "L7":    ["SELECT", "Whitefly", "Aphids", "Spider Mites", "Thrips", "Leaf Miners"],
+    "L8":    ["SELECT", "N", "Mg", "P", "K", "Ca"],
+
+    "YEAR": [2024, 2025],
+    "MONTH": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "DAY": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+    "HOUR": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+    "MINUTE": [0, 15, 30, 45],
+    "SECOND": [0, 15, 30, 45],
+
+    "LEAF_NUMBER_COLUMNS": 50
+  },
+  "FILE_FORMATS": {
+    "DATE_DATA_FORMAT": "YYY-MM-DD",
+    "DATETIME_DATA_FORMAT": "YYYY-MM-DD HH:MM:SS",
+
+    "INPUT_DATE_FORMAT": ["MM.DD.YY"],
+    "INPUT_FILENAME_PATTERN": "{L4}_{L5}_{L1}_{L2}_{L3}.jpg",
+
+    "OUTPUT_DATE_FORMAT": ["MM.DD.YY"],
+    "OUTPUT_FOLDER_PATTERN": "{L4}_{L5}_{L1}",
+    "OUTPUT_FILE_NAME_PATTERN": "{L4}_{L5}_{L1}_{L2}_{L3}.jpg"
+  },
+  "CALIB": {
+    "MANUAL_CALIBRATION_CM": 10.0,
+    "QR_CODE_CALIBRATION": true,
+    "PERSISTENT_CALIBRATION": false
+  },
+  "UI": {
+    "REFERENCE_IMAGE_SIZE": [1920, 1080]
+  },
+  "COLORS":{
+    "Labels":["#FFB000", "#E29B40", "#FF5959", "#883E3E", "#592259", "#3D1585", "#0D69AC", "#1B2A35"],
+    "L1": ["#FDC534", "#FBAB34", "#EB8947", "#C75A48", "#B03B37", "#6E3144"],
+    "L2": ["#592B02", "#F0321F", "#F1CA05", "#2B5B03", "#8A3E73"],
+    "L4": ["#3c78b4", "#c88d28", "#646464", "#559655", "#b45050", "#e06ca7"],
+    "L6": ["#7C7D7C", "#3D3D3D", "#A2A3A2", "#8d7994"],
+    "L7": ["#C2890A", "#402E16", "#693E05", "#B04F09", "#305945"],
+    "L8": ["#C5DB32", "#F27405", "#A6035D", "#663E11", "#324029"]
+  },
+  "PATHS": {
+    "LEAF_AREA_CSV_NAME": "Total_Area_Data.csv",                                    
+    "LEAF_DIST_CSV_NAME": "Area_Data.csv",
+    "LEAF_LENGTH_CSV_NAME": "Length_Data.csv",
+    "LEAF_WIDTH_CSV_NAME": "Width_Data.csv",
+    
+    "OVERLAY_SUBDIR": "Overlays",
+    "DEBUG_SUBDIR": "Debug",
+
+    "TRAINING_SUBDIR": "ML_Training_Data",
+    "OBJECTS_SUBDIR":  "Object_Annotations",
+    "MASKS_SUBDIR":    "Segmentation_Masks",
+    "CONTOURS_SUBDIR": "Leaf_Contours",
+    "YOLO_SUBDIR": "YOLO",
+    "COCO_SUBDIR": "COCO"
+  },
+  "RUN": {
+    "LABEL_IMAGES": true,
+    "SELECT_MASKS": true,
+    "BACKUP_FREQUENCY": "10min",
+
+    "SAVE_DEBUG": false,                            
+    "SAVE_OVERLAYS": true,
+    "SAVE_ML_DATA": false,
+    "RENAME_EXISTING_FILE": true,
+
+    "BACKUP_LEAF_AREA": false,
+    "BACKUP_LEAF_DISTRIBUTION": false,
+    "BACKUP_LEAF_LENGTH": false,
+    "BACKUP_LEAF_WIDTH": false
+  },
+  "ML_TRAINING_OUTPUTS": {
+    "Leaf_Contours": false,
+    "Object_Annotations": false,
+    "Segmentation_Masks": false,
+    "YOLO": false,
+    "COCO": false
+  },
+    "SEG": {
+    "BACKGROUND_COLOR": "Black",
+
+    "GREEN_H_MIN": 38,
+    "GREEN_H_MAX": 78,
+    "GREEN_V_MIN": 60,
+    "YELLOW_H_MIN": 20,
+    "YELLOW_H_MAX": 40,
+    "BLACK_V_MIN": 0,
+    "BLACK_V_MAX": 35,
+    "WHITE_S_MIN": 0,
+    "WHITE_S_MAX": 25,
+    "WHITE_V_MIN": 200,
+    "WHITE_V_MAX": 255,
+    
+    "NOISE_CM2": 0.038,
+    "MIN_LEAF_CM2": 0.04        
+  }
+}

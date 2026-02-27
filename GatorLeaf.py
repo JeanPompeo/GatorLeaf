@@ -338,7 +338,7 @@ CONFIG = {
     # COLORS: Optional per-label color settings
     # ======================================================================================
     "COLORS": {
-        "Update_Buttons": ["#3c78b4", "#c88d28", "#646464", "#559655", "#b45050", "#e06ca7", "#bdb937"],
+        "Labels": ["#3c78b4", "#c88d28", "#646464", "#559655", "#b45050", "#e06ca7", "#bdb937"],
         "L2": ["#3c78b4", "#c88d28", "#646464", "#559655", "#b45050", "#e06ca7"],
         "L4": ["#3c78b4", "#c88d28", "#646464", "#559655", "#b45050", "#e06ca7"]
     },
@@ -3218,12 +3218,12 @@ def _check_update_persistent_data_dynamic(img):
             btn_text = f_cfg["name"]
             colors_cfg = CONFIG.get("COLORS", {}) or {}
             col_hex = None
-            if isinstance(colors_cfg.get("Update_Buttons"), dict):
-                col_hex = colors_cfg["Update_Buttons"].get(f_cfg["name"])
-            elif isinstance(colors_cfg.get("Update_Buttons"), (list, tuple)):
+            if isinstance(colors_cfg.get("Labels"), dict):
+                col_hex = colors_cfg["Labels"].get(f_cfg["name"])
+            elif isinstance(colors_cfg.get("Labels"), (list, tuple)):
                 # Map by index when using a simple list of colors
-                if idx + 1 < len(colors_cfg["Update_Buttons"]):
-                    col_hex = colors_cfg["Update_Buttons"][idx + 1]
+                if idx < len(colors_cfg["Labels"]):
+                    col_hex = colors_cfg["Labels"][idx]
 
             def _hex_to_bgr_local(s):
                 try:

@@ -1,3 +1,5 @@
+# GatorLeaf requirements
+# Compatible with Python 3.10.11
 altgraph==0.17.4
 macholib==1.16.3
 numpy==2.2.6
@@ -6,6 +8,14 @@ packaging==25.0
 pyinstaller==6.15.0
 pyinstaller-hooks-contrib==2025.8
 PyQt5==5.15.11
-PyQt5-Qt5==5.15.17
 PyQt5_sip==12.17.0
 Pillow
+# Optional/advanced features:
+matplotlib
+scikit-image
+pandas
+# macOS only (for Quartz screen detection):
+pyobjc-framework-Quartz; platform_system=='Darwin'
+# Custom modules (if used):
+# astrobotany_calibration_card
+# astrobotany_airisquare
