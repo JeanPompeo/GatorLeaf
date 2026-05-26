@@ -384,7 +384,8 @@ CONFIG = {
         # Green Leaves (most common)
         "GREEN_H_MIN": 38,            # Green hue start (0-180). Lower=includes yellow-green, Higher=purer green only
         "GREEN_H_MAX": 78,            # Green hue end (0-180). Lower=excludes blue-green, Higher=includes cyan/teal
-        "GREEN_V_MIN": 60,            # Min brightness for green (0-255). Lower=includes darker greens, Higher=only bright greens
+        "GREEN_V_MIN": 20,            # Min brightness for green (0-255). Lower=includes darker greens, Higher=only bright greens
+        "GREEN_V_MAX": 255,           # Max brightness for green (0-255). Lower=excludes dark greens, Higher=includes very bright greens
         
         # Yellow-Green Leaves
         "YELLOW_H_MIN": 20,           # Yellow hue start (0-180). Lower=includes orange tones, Higher=purer yellow
@@ -397,17 +398,24 @@ CONFIG = {
         "BROWN_V_MIN": 100,            # Min brightness for brown (0-255). Lower=includes darker browns, Higher=only brighter browns 
         
         # Purple/Magenta Leaves (with STRICTER thresholds to block black background)
-        "PURPLE_H_MIN": 110,          # Purple hue start (0-180). Lower=includes blue-purple, Higher=purer magenta
-        "PURPLE_H_MAX": 160,          # Purple hue end (0-180). Lower=less purple, Higher=includes pink/red
-        "PURPLE_S_MIN": 40,           # Min saturation for purple (0-255). HIGHER than HSV_S_MIN to block dark background
-        "PURPLE_V_MIN": 55,           # Min brightness for purple (0-255). HIGHER than HSV_V_MIN to block dark background
+        "PURPLE_H_MIN": 95,           # Purple hue start (0-180). Lower=includes blue-purple, Higher=purer magenta
+        "PURPLE_H_MAX": 170,          # Purple hue end (0-180). Lower=less purple, Higher=includes pink/red/magenta
+        "PURPLE_S_MIN": 30,           # Min saturation for purple (0-255). Lower to allow paler purples
+        "PURPLE_V_MIN": 50,           # Min brightness for purple (0-255). Lower to include darker purples
         
         # ==================================================================================
         # Lab Color Space Gating (Additional color filtering in L*a*b* space)
         # ==================================================================================
         "LAB_GATE": True,             # Enable Lab filtering. False=skip Lab checks (faster but less selective)
-        "LAB_A_MAX": 15,              # Max a* value (green-red axis, -128 to +127). Lower=greener only, Higher=allows red/purple tones
-        "LAB_B_MAX": 140,             # Max b* value (blue-yellow axis, -128 to +127). Lower=bluer, Higher=allows yellow tones
+        # Lab channel gating: use min/max pairs (ImageJ-style L/A/B are 0-255)
+        # Defaults chosen to be permissive; ImageJ example: L:0-255, A:0-133, B:97-209
+        # Note: code converts a/b to centered range (-128..127) before comparisons.
+        "LAB_L_MIN": 0,
+        "LAB_L_MAX": 255,
+        "LAB_A_MIN": -128,            # centered a* min (ImageJ 0 -> -128)
+        "LAB_A_MAX": 5,               # centered a* max (ImageJ 133 -> 5)
+        "LAB_B_MIN": -31,             # centered b* min (ImageJ 97 -> -31)
+        "LAB_B_MAX": 81,              # centered b* max (ImageJ 209 -> 81)
         "LAB_NEUTRAL_EXCLUDE": True,  # Exclude near-neutral Lab values to reduce background bleed
         "LAB_NEUTRAL_A_ABS_MAX": 3,   # Neutral a* abs max
         "LAB_NEUTRAL_B_ABS_MAX": 3,   # Neutral b* abs max
@@ -436,6 +444,9 @@ CONFIG = {
         "MIN_LEAF_CM2": 0.04,         # Minimum standalone leaf size (cm²). Final leaves must be at least this big
                                       # Lower=keeps small leaves, Higher=only large leaves in final output
                                       # MUST BE LARGER THAN TINY_FRAGMENT_CM2
+
+        "MIN_LEAF_LENGTH_CM": 0.04,    # Minimum leaf length (cm). Leaves shorter than this are excluded.
+        "MIN_LEAF_WIDTH_CM": 0.04,     # Minimum leaf width (cm). Leaves narrower than this are excluded.
         
         "MERGE_SMALL_WITHIN_CM": 0.04,  # Search distance for merging fragments (cm). Larger=merges fragments farther away, Smaller=only very close fragments merge
         
@@ -535,18 +546,22 @@ CONFIG = {
     },
     "VISUALIZATION": {
         # === OVERLAY PANEL DIMENSIONS ===
-        "HEADER_PANEL_WIDTH": 400,
-        "HEADER_PANEL_HEIGHT": 180,
+        "HEADER_PANEL_WIDTH": 320,
+        "HEADER_PANEL_HEIGHT": 140,
         "STATS_PANEL_WIDTH": 250,
         "STATS_PANEL_HEIGHT": 120,
         "PANEL_MARGIN": 10,
+        "CIRCLE_RADIUS": 12,
+        "CIRCLE_THICKNESS": 2,
+        "TEXT_BACKGROUND_PADDING": 1,
+        "TEXT_BORDER_THICKNESS": 1,
         
         # === TEXT STYLING ===
         # Centralized text styling and colors. All text-related options live here.
         # Overlay header/labels
-        "HEADER_FONT_SCALE": 1,
+        "HEADER_FONT_SCALE": 0.4,
         "HEADER_THICKNESS": 1,
-        "HEADER_LINE_HEIGHT": 20,
+        "HEADER_LINE_HEIGHT": 18,
         # Stats panel
         "STATS_FONT_SCALE": 0.4,
         "STATS_THICKNESS": 1,
@@ -582,18 +597,26 @@ CONFIG = {
         "FONT_FACE": "HERSHEY_SIMPLEX",
 
         # === COMPONENT VISUALIZATION ===
-        "BBOX_THICKNESS": 2,
-        "CIRCLE_RADIUS": 12,
-        "CIRCLE_THICKNESS": 2,
-        "TEXT_BACKGROUND_PADDING": 1,
-        "TEXT_BORDER_THICKNESS": 1,
+        "BBOX_THICKNESS": 8,
+        "LENGTH_LINE_THICKNESS": 12,
+        "WIDTH_LINE_THICKNESS": 12,
+        "HEADER_FONT_SCALE": 0.4,
+        "HEADER_LINE_HEIGHT": 18,
+        "PANEL_MARGIN": 10,
 
-        # === SIZE-BASED COLORS (BGR format) ===
+        # # === SIZE-BASED COLORS (BGR format) ===
+        # "SIZE_COLORS": {
+        #     "small": (0, 250, 250),         # Green for < 10 cm²
+        #     "medium": (0, 250, 250),        # Orange for 10-30 cm²
+        #     "large": (0, 250, 250),         # Blue for >= 30 cm²
+        # },
+        
         "SIZE_COLORS": {
-            "small": (0, 250, 250),         # Green for < 10 cm²
-            "medium": (0, 250, 250),         # Orange for 10-30 cm²
-            "large": (0, 250, 250),         # Blue for >= 30 cm²
+            "small": (255, 0, 255),         # Green for < 10 cm²
+            "medium": (255, 0, 255),        # Orange for 10-30 cm²
+            "large": (255, 0, 255),         # Blue for >= 30 cm²
         },
+
         # === PANEL COLORS ===
         "PANEL_ALPHA": 0.8,
         "PANEL_BG_COLOR": (50, 50, 50),        # Dark gray
@@ -607,6 +630,9 @@ CONFIG = {
         "INFO_COLOR": (255, 255, 0),        # Yellow
         "SECONDARY_COLOR": (200, 200, 255), # Light purple
         "TEXT_COLOR": (255, 255, 255),      # White
+
+        # === OUTPUTS ===
+        "CONTOUR_THICKNESS": 20  # The tickness of the leaf contour lines
     }
 }
 
@@ -617,14 +643,11 @@ CONFIG = {
 # Helper: min/max range check
 def _in_range(val, minv, maxv):
     """Helper: check if val is in [minv, maxv] inclusive. Supports numpy arrays."""
-    import numpy as np
     return np.logical_and(val >= minv, val <= maxv)
 
 # Example: segmentation mask creation using min/max pairs
 def segment_leaf_mask(hsv_img, config):
     """Segment leaf mask using min/max pairs from config['SEG']."""
-    import numpy as np
-    import cv2 as cv
     seg = config["SEG"]
     # HSV base thresholds
     s_min = seg.get("HSV_S_MIN", 0)
@@ -797,7 +820,7 @@ def format_label_value_for_csv(label_name, value, date_data_fmt):
             return float(value)
         except Exception:
             return value
-    if ftype == "SELECT":
+    if ftype == "DISCRETE":
         return "" if value is None else str(value)
     return value
 
@@ -1085,7 +1108,7 @@ def normalize_dynamic_schema():
     """Normalize dynamic field schema from CONFIG['INPUTS'] using LABELS + L1..Ln definitions.
 
     Produces CONFIG['SCHEMA_FIELDS'] = [
-        { 'name': str, 'type': 'DATE'|'SELECT'|'NUMERIC'|'TIME', 'options': [...], 'min': int, 'max': int, 'colors': {option: (B,G,R)} }
+        { 'name': str, 'type': 'DATE'|'DISCRETE'|'NUMERIC'|'TIME', 'options': [...], 'min': int, 'max': int, 'colors': {option: (B,G,R)} }
     ]
 
     Resolves each label name from `INPUTS.LABELS`, then maps ordinal L-index to a definition in `INPUTS.L{i}`.
@@ -1114,7 +1137,7 @@ def normalize_dynamic_schema():
         if isinstance(fcfg, (list, tuple)) and len(fcfg) > 0:
             type_token = str(fcfg[0]).strip().upper()
             entry["type"] = type_token
-            if type_token == "SELECT":
+            if type_token == "DISCRETE":
                 opts = [o for o in fcfg[1:]]
                 entry["options"] = opts
                 # Support COLORS keyed by label name or by Ln ordinal (e.g., L2, L4)
@@ -1158,7 +1181,7 @@ def normalize_dynamic_schema():
         elif isinstance(fcfg, dict):
             ftype = (fcfg.get("TYPE") or fcfg.get("type") or "").strip().upper()
             entry["type"] = ftype
-            if ftype == "SELECT":
+            if ftype == "DISCRETE":
                 entry["options"] = fcfg.get("OPTIONS") or fcfg.get("VALUES") or []
                 entry["colors"] = fcfg.get("COLORS") or {}
             elif ftype == "NUMERIC":
@@ -1809,6 +1832,7 @@ def show_hires_panel(window_name, hires_panel, target_width, target_height):
     cv.namedWindow(window_name, cv.WINDOW_NORMAL)
     cv.imshow(window_name, display_panel)
     cv.resizeWindow(window_name, tw, th)
+    cv.waitKey(50) 
     return display_panel
 
 def draw_hires_panel_header(img, title, subtitle, scale_factor, y_pos=None):
@@ -1922,7 +1946,7 @@ def _instruction_text_block_height(scale_factor):
 def _get_button_instruction_gap_unscaled():
     """Return the unscaled gap between the bottom button and instructions.
 
-    This is shared by all panel styles (SELECT, NUMERIC, DATE grid) so that the
+    This is shared by all panel styles (DISCRETE, NUMERIC, DATE grid) so that the
     distance from the last button to the instruction text is consistent.
     Controlled primarily by UI.BUTTON_INSTRUCTION_GAP, falling back to the
     older LIST_BOTTOM_GAP / GRID_BOTTOM_GAP settings if not present.
@@ -2326,6 +2350,7 @@ def create_selection_interface(img, title, subtitle, items, layout_config,
         _add_instructions(hires_panel, "Click or S=Skip / ESC=Quit", instruction_y, scale_factor)
 
         display_panel = show_hires_panel(panel_window, hires_panel, panel_width, panel_height)
+        cv.waitKey(50)
         # In panel-only mode, treat the provided X as a hard anchor so
         # child panels (DATE/TIME/etc.) line up horizontally with the
         # Image Label window. Clamp only Y to keep the panel on-screen.
@@ -2373,6 +2398,7 @@ def create_selection_interface(img, title, subtitle, items, layout_config,
 
         try:
             cv.destroyWindow(panel_window)
+            cv.waitKey(50)  
         except Exception:
             pass
         return None if selected_item == SKIP_SENTINEL else selected_item
@@ -2408,6 +2434,7 @@ def create_selection_interface(img, title, subtitle, items, layout_config,
             _add_instructions(hires_panel, "Click or S=Skip / ESC=Quit", instruction_y, scale_factor)
 
             display_panel = show_hires_panel(panel_window, hires_panel, panel_width, panel_height)
+            cv.waitKey(50)
             # Clamp panel window next to reference image within screen
             pw, ph = display_panel.shape[1], display_panel.shape[0]
             try:
@@ -2418,13 +2445,17 @@ def create_selection_interface(img, title, subtitle, items, layout_config,
             cv.waitKey(1)
             selected = _handle_selection_separate_window(display_panel, click_zones, panel_window, skip_sentinel=SKIP_SENTINEL)
             cv.destroyWindow(image_window)
+            cv.waitKey(50) 
             cv.destroyWindow(panel_window)
+            cv.waitKey(50) 
             return selected
         except Exception as e:
             print(f"Error in {title}: {e}")
             try:
                 cv.destroyWindow(image_window)
+                cv.waitKey(50) 
                 cv.destroyWindow(panel_window)
+                cv.waitKey(50) 
             except:
                 pass
             return None        
@@ -2912,7 +2943,7 @@ def _get_generic_select_visual(img, field_name, options,
                                colors=None, base_anchor=None,
                                panel_width_override=None,
                                layout_key=None):
-    """Generic SELECT input panel using styled buttons; returns selected option or None.
+    """Generic DISCRETE input panel using styled buttons; returns selected option or None.
 
     Note: Does NOT open a new reference image window; reuses the existing one by positioning panel at base_anchor.
     """
@@ -2923,7 +2954,7 @@ def _get_generic_select_visual(img, field_name, options,
     # Ensure a Skip option is always present
     if "__SKIP__" not in button_texts:
         button_texts.append("__SKIP__")
-    # Keep standalone SELECT panels compact: rely on dynamic sizing plus a
+    # Keep standalone DISCRETE panels compact: rely on dynamic sizing plus a
     # modest padding instead of a large default to avoid excessive space
     # between the title and the first row of buttons.
     extra_content_height = CONFIG["UI"].get("PANEL_CONTENT_PADDING", 20)
@@ -2932,7 +2963,7 @@ def _get_generic_select_visual(img, field_name, options,
     )
     panel_width, panel_height = _fit_panel_to_screen(panel_width, panel_height)
     # Treat panel_width_override as an upper bound so that
-    # child SELECT panels (driven from the Image Label window)
+    # child DISCRETE panels (driven from the Image Label window)
     # are never wider than their parent, while still ensuring
     # a reasonable minimum width from calculate_dynamic_panel_size.
     if panel_width_override is not None:
@@ -2973,7 +3004,7 @@ def _get_generic_select_visual(img, field_name, options,
 
         # Anchor the grid from the bottom so that the bottom-most row of
         # buttons sits a fixed config-driven distance above the instruction
-        # text, matching other SELECT/DATE/NUMERIC panels.
+        # text, matching other DISCRETE/DATE/NUMERIC panels.
         panel_height_unscaled = int(hires_panel.shape[0] // max(scale_factor, 1))
         bottom_margin_unscaled = int(ui.get("INSTRUCTION_BOTTOM_MARGIN", margin))
         gap_unscaled = _get_button_instruction_gap_unscaled()
@@ -3339,7 +3370,7 @@ def _check_update_persistent_data_dynamic(img):
             f = next((fs for fs in fields if fs["name"] == selected_action), None)
             if not f:
                 continue
-            if f["type"] == "SELECT":
+            if f["type"] == "DISCRETE":
                 sel = _get_generic_select_visual(img, f["name"], f.get("options", []), f.get("colors", {}), base_anchor=anchor_pos, panel_width_override=panel_width)
                 if sel is not None:
                     _persistent_labels[f["name"]] = sel
@@ -3566,7 +3597,7 @@ def parse_metadata_from_filename(file_name):
                     fcfg = inputs_cfg.get(name) or inputs_cfg.get(f"L{n}")
                     if isinstance(fcfg, (list, tuple)) and len(fcfg) > 0:
                         typ = str(fcfg[0]).strip().upper()
-                        if typ == "SELECT":
+                        if typ == "DISCRETE":
                             opts = [str(o) for o in fcfg[1:]]
                             if opts:
                                 alts = "|".join([re.escape(o) for o in opts])
@@ -4189,6 +4220,61 @@ def annotate_components_with_length_width(mask_full, components, debug: Optional
         comp["length_segment"] = length_seg  # ((x1,y1),(x2,y2))
         comp["width_segment"] = width_seg    # ((x1,y1),(x2,y2))
 
+def filter_components_by_dimensions(components, min_length_cm=0.0, min_width_cm=0.0, min_area_cm2=0.0, debug: Optional[Debugger] = None):
+    """
+    Filter leaf components based on length, width, and area thresholds.
+    
+    Args:
+        components: List of component dictionaries with 'length_cm', 'width_cm', 'area_cm2'
+        min_length_cm: Minimum acceptable length in cm (0 = no filter)
+        min_width_cm: Minimum acceptable width in cm (0 = no filter)
+        min_area_cm2: Minimum acceptable area in cm² (0 = no filter)
+        debug: Optional debugger instance
+    
+    Returns:
+        Filtered list of components that meet all dimensional criteria
+    """
+    if not components:
+        return []
+    
+    filtered = []
+    excluded_count = 0
+    exclusion_reasons = {"length": 0, "width": 0, "area": 0}
+    
+    for comp in components:
+        # Extract dimensions (default to large values if not present)
+        length_cm = comp.get("length_cm", float('inf'))
+        width_cm = comp.get("width_cm", float('inf'))
+        area_cm2 = comp.get("area_cm2", float('inf'))
+        
+        # Check each threshold
+        passes_length = (min_length_cm <= 0) or (length_cm >= min_length_cm)
+        passes_width = (min_width_cm <= 0) or (width_cm >= min_width_cm)
+        passes_area = (min_area_cm2 <= 0) or (area_cm2 >= min_area_cm2)
+        
+        if passes_length and passes_width and passes_area:
+            filtered.append(comp)
+        else:
+            excluded_count += 1
+            # Track exclusion reasons for debugging
+            if not passes_length:
+                exclusion_reasons["length"] += 1
+            if not passes_width:
+                exclusion_reasons["width"] += 1
+            if not passes_area:
+                exclusion_reasons["area"] += 1
+    
+    if debug and excluded_count > 0:
+        debug.log(
+            f"Dimensional filtering: {excluded_count} leaves excluded "
+            f"(length: {exclusion_reasons['length']}, "
+            f"width: {exclusion_reasons['width']}, "
+            f"area: {exclusion_reasons['area']})",
+            level=2
+        )
+    
+    return filtered
+
 def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger] = None, **kwargs):
     """
     Improved HSV segmentation with better handling of dark greens and white stems.
@@ -4313,8 +4399,13 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         
         # ---- Lab color space gating ----
         LAB_GATE = bool(seg.get("LAB_GATE", True))
-        LAB_A_MAX = int(seg.get("LAB_A_MAX", 20))
-        LAB_B_MAX = int(seg.get("LAB_B_MAX", 160))
+        # Read Lab min/max pairs (a/b are stored/used in centered coords)
+        LAB_L_MIN = int(seg.get("LAB_L_MIN", 0))
+        LAB_L_MAX = int(seg.get("LAB_L_MAX", 255))
+        LAB_A_MIN = int(seg.get("LAB_A_MIN", -128))
+        LAB_A_MAX = int(seg.get("LAB_A_MAX", 5))
+        LAB_B_MIN = int(seg.get("LAB_B_MIN", -31))
+        LAB_B_MAX = int(seg.get("LAB_B_MAX", 81))
         
         # ---- Morphology parameters ----
         OPEN_DIAMETER_CM = float(seg.get("OPEN_DIAMETER_CM", 0.045))
@@ -4345,7 +4436,18 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         colorful = (s_chan >= HSV_S_MIN) & (s_chan <= HSV_S_MAX)
         bright_enough = (v_chan >= HSV_V_MIN) & (v_chan <= HSV_V_MAX)
         not_black = ~((v_chan >= BLACK_V_MIN) & (v_chan <= BLACK_V_MAX))
-        not_white = ~((s_chan >= WHITE_S_MIN) & (s_chan <= WHITE_S_MAX) & (v_chan >= WHITE_V_MIN) & (v_chan <= WHITE_V_MAX))
+        # Treat whites specially: only exclude white pixels that do NOT match any leaf hue bands
+        white_mask = (s_chan >= WHITE_S_MIN) & (s_chan <= WHITE_S_MAX) & (v_chan >= WHITE_V_MIN) & (v_chan <= WHITE_V_MAX)
+        # Candidate leaf hue bands (green/yellow/brown/purple)
+        leaf_hue_candidate = (
+            ((h_chan >= GREEN_H_MIN) & (h_chan <= GREEN_H_MAX)) |
+            ((h_chan >= YELLOW_H_MIN) & (h_chan <= YELLOW_H_MAX)) |
+            ((h_chan >= BROWN_H_MIN) & (h_chan <= BROWN_H_MAX)) |
+            ((h_chan >= PURPLE_H_MIN) & (h_chan <= PURPLE_H_MAX))
+        )
+        # Only exclude whites that are NOT within any leaf hue band
+        white_exclusion = white_mask & (~leaf_hue_candidate)
+        not_white = ~white_exclusion
         base_keep_strict = (colorful & bright_enough & not_black & not_white)
         
         # Exclude blue hues (leaves are rarely blue)
@@ -4355,7 +4457,8 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         GREEN_V_MIN = int(seg.get("GREEN_V_MIN", 60))
         GREEN_V_MAX = int(seg.get("GREEN_V_MAX", 255))
         green_hue_ok = ((h_chan >= GREEN_H_MIN) & (h_chan <= GREEN_H_MAX))
-        green_relax = (green_hue_ok & (s_chan >= HSV_S_MIN) & (s_chan <= HSV_S_MAX) & (v_chan >= GREEN_V_MIN) & (v_chan <= GREEN_V_MAX) & not_black & not_white)
+        # Relax green condition: allow low-saturation (paler) greens by dropping a lower S bound
+        green_relax = (green_hue_ok & (s_chan <= HSV_S_MAX) & (v_chan >= GREEN_V_MIN) & (v_chan <= GREEN_V_MAX) & not_black & not_white)
         
         # Combine: strict OR relaxed-green
         base_keep = ((base_keep_strict | green_relax) & (~blue_mask)).astype(np.uint8) * 255
@@ -4397,12 +4500,21 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
         # Apply Lab color space gating
         if LAB_GATE:
             lab = cv.cvtColor(imgS, cv.COLOR_BGR2LAB)
+            # Convert OpenCV Lab a/b (0-255) to centered (-128..127)
+            l_chan = lab[:, :, 0].astype(np.int16)
             a_chan = lab[:, :, 1].astype(np.int16) - 128
             b_chan = lab[:, :, 2].astype(np.int16) - 128
-            lab_mask = ((a_chan <= LAB_A_MAX) & (b_chan <= LAB_B_MAX)).astype(np.uint8) * 255
+
+            # Build mask using full min/max ranges for L, a, b
+            lab_mask_cond = (
+                (l_chan >= LAB_L_MIN) & (l_chan <= LAB_L_MAX) &
+                (a_chan >= LAB_A_MIN) & (a_chan <= LAB_A_MAX) &
+                (b_chan >= LAB_B_MIN) & (b_chan <= LAB_B_MAX)
+            )
+            lab_mask = lab_mask_cond.astype(np.uint8) * 255
             
             # Neutral Lab suppression: exclude near‑gray pixels
-            if bool(seg.get("LAB_NEUTRAL_EXCLUDE", True)):
+            if bool(seg.get("LAB_NEUTRAL_EXCLUDE", False)):
                 a_abs_max = LAB_NEUTRAL_A_ABS_MAX
                 b_abs_max = LAB_NEUTRAL_B_ABS_MAX
                 neutral = ((np.abs(a_chan) <= a_abs_max) & (np.abs(b_chan) <= b_abs_max)).astype(np.uint8) * 255
@@ -4574,36 +4686,112 @@ def draw_results(img, components, Pixel_ratio, label_info, calibration_points=No
 def _draw_leaf_components(overlay, components, Pixel_ratio):
     """Draw bounding boxes, indices, area, and length/width lines onto overlay."""
     viz_config = CONFIG["VISUALIZATION"]
-
     length_color = (0, 0, 255)      # red
     width_color  = (255, 255, 0)    # cyan/yellow
-
+    
+    # Get thickness values from config
+    bbox_thickness = int(viz_config.get("BBOX_THICKNESS", 8))
+    length_thickness = int(viz_config.get("LENGTH_LINE_THICKNESS", 10))
+    width_thickness = int(viz_config.get("WIDTH_LINE_THICKNESS", 10))
+    
     # Draw annotations on a separate layer, then composite for solid colors
     annot = np.zeros_like(overlay)
     annot_mask = np.zeros(overlay.shape[:2], dtype=np.uint8)
-
+    
     def _rect(img, mask, pt1, pt2, color, thickness):
         cv.rectangle(img, pt1, pt2, color, thickness)
         cv.rectangle(mask, pt1, pt2, 255, thickness)
-
+    
     def _circle(img, mask, center, radius, color, thickness):
         cv.circle(img, center, radius, color, thickness)
         cv.circle(mask, center, radius, 255, thickness)
-
+    
     def _line(img, mask, pt1, pt2, color, thickness):
         cv.line(img, pt1, pt2, color, thickness)
         cv.line(mask, pt1, pt2, 255, thickness)
-
+    
     def _text(img, mask, text, org, font, scale, color, thickness):
         cv.putText(img, text, org, font, scale, color, thickness, cv.LINE_AA)
         cv.putText(mask, text, org, font, scale, 255, thickness, cv.LINE_AA)
-
+    
     # Number leaves by descending area to match distribution/metrics ordering
     ordered_components = sorted(components, key=lambda c: c.get("area_px", 0), reverse=True)
+    
+    # Store data for two-pass rendering
+    circle_data = []
+    text_box_data = []
+    occupied_regions = []  # Track occupied regions for collision detection
+    
+    # Font settings for metrics text
+    metrics_font = cv.FONT_HERSHEY_SIMPLEX
+    metrics_scale = 0.45
+    metrics_thickness = 1
+    padding = 4
+    line_spacing = 18
+    
+    def boxes_overlap(box1, box2):
+        """Check if two boxes overlap (with small margin)."""
+        margin = 3
+        x1_min, y1_min, x1_max, y1_max = box1
+        x2_min, y2_min, x2_max, y2_max = box2
+        return not (x1_max + margin < x2_min or x2_max + margin < x1_min or
+                    y1_max + margin < y2_min or y2_max + margin < y1_min)
+    
+    def find_non_overlapping_position(initial_box, bbox, img_shape):
+        """Find a position for text box that doesn't overlap with occupied regions."""
+        x, y, w, h = bbox
+        box_w = initial_box[2] - initial_box[0]
+        box_h = initial_box[3] - initial_box[1]
+        
+        # Try different positions in order of preference
+        # 1. Bottom-right (default)
+        # 2. Bottom-left
+        # 3. Top-right
+        # 4. Top-left
+        # 5. Inside bbox, centered at bottom
+        
+        positions = [
+            # Bottom-right corner (outside bbox)
+            (x + w - box_w, y + h),
+            # Bottom-right corner (inside bbox)
+            (x + w - box_w - padding, y + h - box_h - padding),
+            # Bottom-left corner (inside bbox)
+            (x + padding, y + h - box_h - padding),
+            # Top-right corner (inside bbox)
+            (x + w - box_w - padding, y + padding),
+            # Top-left corner (inside bbox)
+            (x + padding, y + padding),
+            # Centered at bottom (inside bbox)
+            (x + (w - box_w) // 2, y + h - box_h - padding),
+        ]
+        
+        for px, py in positions:
+            # Clamp to image bounds
+            px = max(0, min(px, img_shape[1] - box_w))
+            py = max(0, min(py, img_shape[0] - box_h))
+            
+            test_box = (px, py, px + box_w, py + box_h)
+            
+            # Check if this position overlaps with any occupied region
+            overlaps = False
+            for occupied in occupied_regions:
+                if boxes_overlap(test_box, occupied):
+                    overlaps = True
+                    break
+            
+            if not overlaps:
+                return (px, py, px + box_w, py + box_h)
+        
+        # If all positions overlap, return the default (bottom-right inside) anyway
+        px = max(0, min(x + w - box_w - padding, img_shape[1] - box_w))
+        py = max(0, min(y + h - box_h - padding, img_shape[0] - box_h))
+        return (px, py, px + box_w, py + box_h)
+    
+    # FIRST PASS: Draw bounding boxes, length/width lines, and calculate text positions
     for i, comp in enumerate(ordered_components, start=1):
         x, y, w, h = comp["bbox"]
         area_px = comp["area_px"]
-
+        
         # Choose colors based on leaf size using CONFIG
         if Pixel_ratio:
             area_cm2 = area_px / (Pixel_ratio ** 2)
@@ -4614,219 +4802,244 @@ def _draw_leaf_components(overlay, components, Pixel_ratio):
             else:
                 color = viz_config["SIZE_COLORS"]["large"]
         else:
-            color = viz_config["SIZE_COLORS"]["large"]  # Default color
-
+            area_cm2 = None
+            color = viz_config["SIZE_COLORS"]["large"]
+        
         # Draw bounding rectangle
-        _rect(annot, annot_mask, (x, y), (x + w, y + h), color, viz_config["BBOX_THICKNESS"] + 3)
-
-        # Leaf index in a circle (top-left of bbox, clamped inside image bounds)
-        circle_center = (
-            int(max(15, min(x + viz_config["CIRCLE_RADIUS"] + 6, overlay.shape[1] - 15))),
-            int(max(15, min(y + viz_config["CIRCLE_RADIUS"] + 6, overlay.shape[0] - 15)))
-        )
-        number_scale = 0.6        # was 0.5
-        number_thickness = 2      # was 1
-
-        circle_radius = int(viz_config["CIRCLE_RADIUS"] * 1.4)
-        circle_thickness = int(viz_config["CIRCLE_THICKNESS"] * 1.2)
-        _circle(annot, annot_mask, circle_center, circle_radius, color, -1)
-        _circle(annot, annot_mask, circle_center, circle_radius, (0, 0, 0), circle_thickness)
-        text_size = cv.getTextSize(str(i), cv.FONT_HERSHEY_SIMPLEX, 0.5, number_thickness)[0]
-        text_x = circle_center[0] - text_size[0] // 2
-        text_y = circle_center[1] + text_size[1] // 2
-        _text(annot, annot_mask, str(i), (text_x, text_y), cv.FONT_HERSHEY_SIMPLEX, number_scale, (0, 0, 0), number_thickness)
-
-        # Area label
-        if Pixel_ratio:
-            area_text = f"{area_cm2:.2f} sqcm"
-        else:
-            area_text = f"{area_px} px"
-
-        text_x = x
-        text_y = y + h + 25
-        font_scale = viz_config["LABEL_FONT_SCALE"]
-        font_thickness = viz_config["LABEL_THICKNESS"]
-        text_size = cv.getTextSize(area_text, cv.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)[0]
-        padding = viz_config["TEXT_BACKGROUND_PADDING"]
-        border_thickness = viz_config["TEXT_BORDER_THICKNESS"]
-        _rect(annot, annot_mask,
-            (text_x - padding//2, text_y - text_size[1] - padding),
-            (text_x + text_size[0] + padding, text_y + padding//2),
-            (255, 255, 255), -1)
-        _rect(annot, annot_mask,
-            (text_x - padding//2, text_y - text_size[1] - padding),
-            (text_x + text_size[0] + padding, text_y + padding//2),
-            (0, 0, 0), border_thickness)
-        _text(annot, annot_mask, area_text, (text_x, text_y),
-            cv.FONT_HERSHEY_SIMPLEX, font_scale, color, font_thickness)
-
-        # === NEW: length & width annotations ===
+        _rect(annot, annot_mask, (x, y), (x + w, y + h), color, bbox_thickness)
+        
+        # Draw length and width lines
         length_cm = comp.get("length_cm", 0.0)
         width_cm  = comp.get("width_cm", 0.0)
         length_seg = comp.get("length_segment")
         width_seg  = comp.get("width_segment")
-
-        # Area/Length/width text near top of bbox
-        dim_text1 = f"A={area_cm2:.2f} sqcm"
-        dim_text2 = f"L={length_cm:.2f} cm"
-        dim_text3 = f"W={width_cm:.2f} cm"
-
-        dim_y1 = y - 10 if y - 10 > 10 else y + 35
-        dim_y2 = y - 30 if y - 30 > -10 else y + 35
-        dim_y3 = y - 50 if y - 50 > -30 else y + 35
-
-        _text(annot, annot_mask, dim_text1, (x + 5, dim_y1),
-              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        _text(annot, annot_mask, dim_text2, (x + 5, dim_y2),
-              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        _text(annot, annot_mask, dim_text3, (x + 5, dim_y3),
-              cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-        # Draw true length and width segments if available
+        
         if length_seg is not None:
             (lx1, ly1), (lx2, ly2) = length_seg
-            _line(annot, annot_mask, (int(lx1), int(ly1)), (int(lx2), int(ly2)), length_color, 5)
-
+            _line(annot, annot_mask, (int(lx1), int(ly1)), (int(lx2), int(ly2)), length_color, length_thickness)
         if width_seg is not None:
             (wx1, wy1), (wx2, wy2) = width_seg
-            _line(annot, annot_mask, (int(wx1), int(wy1)), (int(wx2), int(wy2)), width_color, 5)
-
+            _line(annot, annot_mask, (int(wx1), int(wy1)), (int(wx2), int(wy2)), width_color, width_thickness)
+        
+        # Prepare consolidated metrics text
+        if Pixel_ratio:
+            text_lines = [
+                f"A: {area_cm2:.2f} sqcm",
+                f"L: {length_cm:.2f} cm",
+                f"W: {width_cm:.2f} cm"
+            ]
+        else:
+            text_lines = [f"{area_px} px"]
+        
+        # Calculate text box dimensions
+        max_text_width = 0
+        for line in text_lines:
+            (tw, th), _ = cv.getTextSize(line, metrics_font, metrics_scale, metrics_thickness)
+            max_text_width = max(max_text_width, tw)
+        
+        text_box_width = max_text_width + padding * 2
+        text_box_height = len(text_lines) * line_spacing + padding * 2
+        
+        # Initial position (bottom-right inside bbox)
+        initial_box = (
+            x + w - text_box_width - padding,
+            y + h - text_box_height - padding,
+            x + w - padding,
+            y + h - padding
+        )
+        
+        # Find non-overlapping position
+        final_box = find_non_overlapping_position(initial_box, (x, y, w, h), overlay.shape)
+        occupied_regions.append(final_box)
+        
+        # Store text box data for rendering
+        text_box_data.append({
+            'box': final_box,
+            'lines': text_lines,
+            'color': color
+        })
+        
+        # Store circle data for later (SECOND PASS)
+        circle_center = (
+            int(max(15, min(x + viz_config["CIRCLE_RADIUS"] + 6, overlay.shape[1] - 15))),
+            int(max(15, min(y + viz_config["CIRCLE_RADIUS"] + 6, overlay.shape[0] - 15)))
+        )
+        circle_data.append({
+            'center': circle_center,
+            'number': str(i),
+            'color': color
+        })
+    
+    # SECOND PASS: Draw text boxes with white background
+    for text_info in text_box_data:
+        box = text_info['box']
+        lines = text_info['lines']
+        
+        # Draw white background
+        _rect(annot, annot_mask, 
+              (box[0], box[1]), (box[2], box[3]), 
+              (255, 255, 255), -1)
+        
+        # Draw black border
+        _rect(annot, annot_mask, 
+              (box[0], box[1]), (box[2], box[3]), 
+              (0, 0, 0), 1)
+        
+        # Draw text lines
+        text_x = box[0] + padding
+        text_y = box[1] + padding + 12  # Baseline offset
+        
+        for line in lines:
+            _text(annot, annot_mask, line, (text_x, text_y),
+                  metrics_font, metrics_scale, (0, 0, 0), metrics_thickness)
+            text_y += line_spacing
+    
+    # THIRD PASS: Draw numbered circles on top of everything
+    number_scale = 0.6
+    number_thickness = 2
+    circle_radius = int(viz_config["CIRCLE_RADIUS"] * 1.4)
+    circle_thickness = int(viz_config["CIRCLE_THICKNESS"] * 1.2)
+    
+    for circle_info in circle_data:
+        circle_center = circle_info['center']
+        number = circle_info['number']
+        color = circle_info['color']
+        
+        # Draw filled circle
+        _circle(annot, annot_mask, circle_center, circle_radius, color, -1)
+        # Draw circle border
+        _circle(annot, annot_mask, circle_center, circle_radius, (0, 0, 0), circle_thickness)
+        
+        # Draw number centered in circle
+        text_size = cv.getTextSize(number, cv.FONT_HERSHEY_SIMPLEX, number_scale, number_thickness)[0]
+        text_x = circle_center[0] - text_size[0] // 2
+        text_y = circle_center[1] + text_size[1] // 2
+        _text(annot, annot_mask, number, (text_x, text_y), cv.FONT_HERSHEY_SIMPLEX, number_scale, (0, 0, 0), number_thickness)
+    
     # Composite annotations with full opacity
     overlay[annot_mask > 0] = annot[annot_mask > 0]
-            
+
 def _add_header_info(overlay, Leaf_Num, total_area_cm2, Pixel_ratio, label_info, components=None):
     """Enhanced header info using CONFIG styling with dynamic panel width."""
     viz_config = CONFIG["VISUALIZATION"]
     panel_margin = viz_config["PANEL_MARGIN"]
-    # Header text parameters
+    
     header_font = cv.FONT_HERSHEY_SIMPLEX
-    header_scale = viz_config["HEADER_FONT_SCALE"] + 0.5
+    header_scale = viz_config["HEADER_FONT_SCALE"]
     header_thickness = viz_config["HEADER_THICKNESS"]
     base_line_height = viz_config["HEADER_LINE_HEIGHT"]
+    
     text_h = cv.getTextSize("Ag", header_font, header_scale, header_thickness)[0][1]
     line_height = max(base_line_height, int(text_h * 1.35))
-
-    # Build all header lines first (so we can compute required width)
+    
     lines = []
     text_color = (255, 255, 255)
+    
+    # Header
     lines.append(("LEAF ANALYSIS RESULTS", text_color))
-    if Pixel_ratio:
-        lines.append((f"Total area: {total_area_cm2:.2f} sqcm", text_color))
-        lines.append((f"Calibration: {Pixel_ratio:.2f} px/cm", text_color))
-    else:
-        lines.append(("Total area: No calibration", text_color))
-
-    if components and Pixel_ratio:
-        areas_cm2 = [c["area_px"] / (Pixel_ratio ** 2) for c in components]
-        avg_area = sum(areas_cm2) / len(areas_cm2)
-        min_area = min(areas_cm2)
-        max_area = max(areas_cm2)
-        lines.append(("", text_color))
-        lines.append(("LEAF STATISTICS", text_color))
-        lines.append((f"Average: {avg_area:.2f} sqcm", text_color))
-        lines.append((f"Range: {min_area:.2f} - {max_area:.2f} sqcm", text_color))
-        lines.append((f"Total: {len(components)} leaves", text_color))
-
-    # Label information from config-defined labels
+    lines.append(("", text_color))  # Blank line
+    
+    # Date and Labels
     if isinstance(label_info, dict):
         label_order = CONFIG.get("INPUTS", {}).get("LABELS") or []
         for nm in label_order:
             val = label_info.get(nm)
-            if val is None:
-                continue
-            lines.append((f"{nm}: {val}", text_color))
-
-    # Compute required panel width dynamically based on the longest line
+            if val is not None:
+                # Format DATE fields for display
+                field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == nm), None)
+                if field_cfg and str(field_cfg.get("type")).upper() == "DATE":
+                    display_val = format_date_for_display(str(val))
+                else:
+                    display_val = str(val)
+                lines.append((f"{nm}: {display_val}", text_color))
+        lines.append(("", text_color))  # Blank line
+    
+    # Basic Info
+    lines.append((f"Total Area: {total_area_cm2:.2f} sqcm", text_color))
+    if Pixel_ratio:
+        lines.append((f"Calibration: {Pixel_ratio:.2f} px/cm", text_color))
+    else:
+        lines.append(("Calibration: None", text_color))
+    lines.append((f"Leaf Count: {len(components) if components else 0}", text_color))
+    lines.append(("", text_color))  # Blank line
+    
+    # Detailed Statistics
+    if components and Pixel_ratio and len(components) > 0:
+        # Calculate area statistics
+        areas_cm2 = [c["area_px"] / (Pixel_ratio ** 2) for c in components]
+        area_max = max(areas_cm2)
+        area_min = min(areas_cm2)
+        area_avg = sum(areas_cm2) / len(areas_cm2)
+        area_sd = (sum((x - area_avg) ** 2 for x in areas_cm2) / len(areas_cm2)) ** 0.5
+        
+        lines.append(("AREA (sqcm)", text_color))
+        lines.append((f"  Max: {area_max:.2f}", text_color))
+        lines.append((f"  Min: {area_min:.2f}", text_color))
+        lines.append((f"  Avg: {area_avg:.2f}", text_color))
+        lines.append((f"  SD:  {area_sd:.2f}", text_color))
+        lines.append(("", text_color))  # Blank line
+        
+        # Calculate length statistics (if available)
+        lengths_cm = [c.get("length_cm", 0) for c in components if c.get("length_cm", 0) > 0]
+        if lengths_cm:
+            length_max = max(lengths_cm)
+            length_min = min(lengths_cm)
+            length_avg = sum(lengths_cm) / len(lengths_cm)
+            length_sd = (sum((x - length_avg) ** 2 for x in lengths_cm) / len(lengths_cm)) ** 0.5
+            
+            lines.append(("LENGTH (cm)", text_color))
+            lines.append((f"  Max: {length_max:.2f}", text_color))
+            lines.append((f"  Min: {length_min:.2f}", text_color))
+            lines.append((f"  Avg: {length_avg:.2f}", text_color))
+            lines.append((f"  SD:  {length_sd:.2f}", text_color))
+            lines.append(("", text_color))  # Blank line
+        
+        # Calculate width statistics (if available)
+        widths_cm = [c.get("width_cm", 0) for c in components if c.get("width_cm", 0) > 0]
+        if widths_cm:
+            width_max = max(widths_cm)
+            width_min = min(widths_cm)
+            width_avg = sum(widths_cm) / len(widths_cm)
+            width_sd = (sum((x - width_avg) ** 2 for x in widths_cm) / len(widths_cm)) ** 0.5
+            
+            lines.append(("WIDTH (cm)", text_color))
+            lines.append((f"  Max: {width_max:.2f}", text_color))
+            lines.append((f"  Min: {width_min:.2f}", text_color))
+            lines.append((f"  Avg: {width_avg:.2f}", text_color))
+            lines.append((f"  SD:  {width_sd:.2f}", text_color))
+    
+    # Calculate dynamic panel width
     max_text_width = 0
     for text, _color in lines:
         size = cv.getTextSize(text, header_font, header_scale, header_thickness)[0]
         max_text_width = max(max_text_width, size[0])
-
-    # Base minimum width, but expand to fit longest text + padding
-    base_width = viz_config["HEADER_PANEL_WIDTH"]
-    padding = 30  # extra padding around text
-    dynamic_width = max(base_width, max_text_width + padding + panel_margin * 2)
-
-    # Window height based on number of lines
-    base_height = viz_config["HEADER_PANEL_HEIGHT"]
-    # Roughly: top margin + lines * line_height + bottom margin
-    dynamic_height = max(base_height, 40 + len(lines) * line_height + 20)
-
-    # Draw background panel using dynamic width/height
+    
+    padding_x = 16
+    padding_y = 12
+    dynamic_width = max_text_width + padding_x + panel_margin * 2
+    dynamic_height = len(lines) * line_height + padding_y + panel_margin * 2
+    
+    # Draw semi-transparent background
     panel_overlay = overlay.copy()
     bg_color = viz_config.get("STATS_PANEL_BG_COLOR", (0, 0, 0))
     cv.rectangle(panel_overlay, (panel_margin, panel_margin),
-                 (panel_margin + dynamic_width, panel_margin + dynamic_height),
-                 bg_color, -1)
+                (panel_margin + dynamic_width, panel_margin + dynamic_height),
+                bg_color, -1)
     cv.addWeighted(panel_overlay, viz_config["PANEL_ALPHA"], overlay, 1 - viz_config["PANEL_ALPHA"], 0, overlay)
-
+    
     # Draw border
     cv.rectangle(overlay, (panel_margin, panel_margin),
-                 (panel_margin + dynamic_width, panel_margin + dynamic_height),
-                 viz_config["PANEL_BORDER_COLOR"], viz_config["PANEL_BORDER_THICKNESS"])
-
-    # Render lines
+                (panel_margin + dynamic_width, panel_margin + dynamic_height),
+                viz_config["PANEL_BORDER_COLOR"], viz_config["PANEL_BORDER_THICKNESS"])
+    
+    # Draw all text lines
     y_pos = panel_margin + line_height
     x_pos = panel_margin + 20
     for text, color in lines:
-        if text:
+        if text:  # Skip empty lines but preserve spacing
             cv.putText(overlay, text, (x_pos, y_pos), header_font, header_scale, color, header_thickness, cv.LINE_AA)
         y_pos += line_height
 
-
-def _add_component_stats(overlay, components, Pixel_ratio):
-    """Enhanced statistics panel using CONFIG styling."""
-    if not components or not Pixel_ratio:
-        return
-    
-    viz_config = CONFIG["VISUALIZATION"]
-    
-    # Calculate statistics
-    areas_cm2 = [c["area_px"] / (Pixel_ratio ** 2) for c in components]
-    avg_area = sum(areas_cm2) / len(areas_cm2)
-    min_area = min(areas_cm2)
-    max_area = max(areas_cm2)
-    
-    # Position stats panel using CONFIG dimensions
-    img_height, img_width = overlay.shape[:2]
-    panel_width = viz_config["STATS_PANEL_WIDTH"]
-    panel_height = viz_config["STATS_PANEL_HEIGHT"]
-    panel_margin = viz_config["PANEL_MARGIN"]
-    
-    panel_x = img_width - panel_width - panel_margin
-    panel_y = panel_margin
-    
-    # Draw background panel using CONFIG styling
-    stats_overlay = overlay.copy()
-    cv.rectangle(stats_overlay, (panel_x, panel_y),
-                 (panel_x + panel_width, panel_y + panel_height),
-                 viz_config["STATS_PANEL_BG_COLOR"], -1)
-    cv.addWeighted(stats_overlay, viz_config["PANEL_ALPHA"], overlay, 1 - viz_config["PANEL_ALPHA"], 0, overlay)
-    
-    # Draw border using CONFIG settings
-    cv.rectangle(overlay, (panel_x, panel_y),
-                 (panel_x + panel_width, panel_y + panel_height),
-                 viz_config["PANEL_BORDER_COLOR"], viz_config["PANEL_BORDER_THICKNESS"])
-    
-    # Add statistics text using CONFIG styling
-    font = cv.FONT_HERSHEY_SIMPLEX
-    scale = viz_config["STATS_FONT_SCALE"]
-    thickness = viz_config["STATS_THICKNESS"]
-    color = viz_config["TEXT_COLOR"]
-    line_spacing = viz_config["STATS_LINE_SPACING"]
-    
-    y_pos = panel_y + 25
-    
-    def add_stat_line(text):
-        nonlocal y_pos
-        cv.putText(overlay, text, (panel_x + 10, y_pos), font, scale,
-                   color, thickness, cv.LINE_AA)
-        y_pos += line_spacing
-    
-    add_stat_line("LEAF STATISTICS")
-    add_stat_line(f"Average: {avg_area:.2f} sqcm")
-    add_stat_line(f"Range: {min_area:.2f} - {max_area:.2f} sqcm")
-    add_stat_line(f"Total: {len(components)} leaves")
 
 # ----------------------------------------------------------------------------------------------------------------------------------
 # 11) SEGMENTATION REVIEW FUNCTIONS
@@ -5317,6 +5530,28 @@ def process_image(path, debug: Optional[Debugger] = None):
         for c in components:
             c["length_cm"] = (c.get("length_px", 0.0) / Pixel_ratio) if Pixel_ratio else 0.0
             c["width_cm"]  = (c.get("width_px", 0.0)  / Pixel_ratio) if Pixel_ratio else 0.0
+
+        # Apply dimensional filters from CONFIG
+        seg = CONFIG.get("SEG", {})
+        min_length_cm = float(seg.get("MIN_LEAF_LENGTH_CM", 0.0))
+        min_width_cm = float(seg.get("MIN_LEAF_WIDTH_CM", 0.0))
+        min_area_cm2 = float(seg.get("MIN_LEAF_CM2", 0.0))
+        
+        # Filter components by all dimensional criteria
+        if min_length_cm > 0 or min_width_cm > 0 or min_area_cm2 > 0:
+            pre_filter_count = len(components)
+            components = filter_components_by_dimensions(
+                components,
+                min_length_cm=min_length_cm,
+                min_width_cm=min_width_cm,
+                min_area_cm2=min_area_cm2,
+                debug=debug
+            )
+            if debug and pre_filter_count > len(components):
+                debug.log(
+                    f"Dimensional filtering reduced leaves from {pre_filter_count} to {len(components)}",
+                    level=2
+                )
 
         # Review dialog
         review_enabled = CONFIG["RUN"].get("REVIEW_SEGMENTATION", True) and not CONFIG["RUN"].get("HEADLESS", False)
@@ -6187,33 +6422,39 @@ def save_leaf_contours(img, leaf_mask, components, output_dir, filename_base):
     """Extract and save individual leaf contours."""
     contours_dir = os.path.join(output_dir, CONFIG["PATHS"]["CONTOURS_SUBDIR"])
     os.makedirs(contours_dir, exist_ok=True)
-    
+
     # Find contours in the leaf mask
     contours, _ = cv.findContours(leaf_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    
+
     # Create visualization
     contour_img = img.copy()
-    colors = [(255,0,0), (0,255,0), (0,0,255), (255,255,0), (255,0,255), (0,255,255)]
-    
+
+    # Use the predefined color‑blind palette (BGR tuples)
+    colors = _COLORBLIND_BGR
+
+    thickness = int(CONFIG.get("VISUALIZATION", {}).get("CONTOUR_THICKNESS", 5))
     contour_data = []
+
     for i, contour in enumerate(contours):
         if len(contour) >= 3:  # Valid contour
             color = colors[i % len(colors)]
-            cv.drawContours(contour_img, [contour], -1, color, 2)
+            cv.drawContours(contour_img, [contour], -1, color, thickness)
             points = contour.reshape(-1, 2).tolist()
             contour_data.append({
                 "leaf_id": i + 1,
                 "points": points,
                 "area": cv.contourArea(contour)
             })
-    
+
     # Save contour visualization and data
     contour_path = os.path.join(contours_dir, f"{filename_base}_contours.jpg")
     cv.imwrite(contour_path, contour_img)
+
     if contour_data:
         json_path = os.path.join(contours_dir, f"{filename_base}_contours.json")
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(contour_data, f, indent=2)
+            
 
 def save_comprehensive_coco_annotations(img, leaf_mask, components, Pixel_ratio, label_info,
                                        calib_exclude_mask, label_exclude_mask, output_dir, filename_base, qr_info=None):

@@ -2,14 +2,14 @@
   "INPUTS": {
     "LABELS":  ["Location", "Crop", "Row_Number", "Harvest_Date", "Time_of_Day", "Disease?", "Pest?", "Nutrient_Def?"],
 
-    "L1":    ["SELECT", "N", "W", "E", "S", "SE", "SW"],
-    "L2":    ["SELECT", "Potato", "Tomato", "Pepper", "Cucumber", "Eggplant"],
+    "L1":    ["DISCRETE", "N", "W", "E", "S", "SE", "SW"],
+    "L2":    ["DISCRETE", "Potato", "Tomato", "Pepper", "Cucumber", "Eggplant"],
     "L3":    ["NUMERIC", 15, 105],
     "L4":    ["DATE", "MONTH", "DAY", "YEAR"],
     "L5":    ["TIME", "HOUR", "MINUTE", "SECOND"],
-    "L6":    ["SELECT", "Powdery Mildew", "Downy Mildew", "Fusarium", "Leaf Spot"],
-    "L7":    ["SELECT", "Whitefly", "Aphids", "Spider Mites", "Thrips", "Leaf Miners"],
-    "L8":    ["SELECT", "N", "Mg", "P", "K", "Ca"],
+    "L6":    ["DISCRETE", "Powdery Mildew", "Downy Mildew", "Fusarium", "Leaf Spot"],
+    "L7":    ["DISCRETE", "Whitefly", "Aphids", "Spider Mites", "Thrips", "Leaf Miners"],
+    "L8":    ["DISCRETE", "N", "Mg", "P", "K", "Ca"],
 
     "YEAR": [2024, 2025],
     "MONTH": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
@@ -36,10 +36,10 @@
     "QR_CODE_CALIBRATION": true,
     "PERSISTENT_CALIBRATION": false
   },
-  "UI": {
+"UI": {
     "REFERENCE_IMAGE_SIZE": [1920, 1080]
   },
-  "COLORS":{
+"COLORS":{
     "Labels":["#FFB000", "#E29B40", "#FF5959", "#883E3E", "#592259", "#3D1585", "#0D69AC", "#1B2A35"],
     "L1": ["#FDC534", "#FBAB34", "#EB8947", "#C75A48", "#B03B37", "#6E3144"],
     "L2": ["#592B02", "#F0321F", "#F1CA05", "#2B5B03", "#8A3E73"],
@@ -48,7 +48,7 @@
     "L7": ["#C2890A", "#402E16", "#693E05", "#B04F09", "#305945"],
     "L8": ["#C5DB32", "#F27405", "#A6035D", "#663E11", "#324029"]
   },
-  "PATHS": {
+"PATHS": {
     "LEAF_AREA_CSV_NAME": "Total_Area_Data.csv",                                    
     "LEAF_DIST_CSV_NAME": "Area_Data.csv",
     "LEAF_LENGTH_CSV_NAME": "Length_Data.csv",
@@ -64,7 +64,7 @@
     "YOLO_SUBDIR": "YOLO",
     "COCO_SUBDIR": "COCO"
   },
-  "RUN": {
+"RUN": {
     "LABEL_IMAGES": true,
     "SELECT_MASKS": true,
     "BACKUP_FREQUENCY": "10min",
@@ -79,29 +79,53 @@
     "BACKUP_LEAF_LENGTH": false,
     "BACKUP_LEAF_WIDTH": false
   },
-  "ML_TRAINING_OUTPUTS": {
+"ML_TRAINING_OUTPUTS": {
     "Leaf_Contours": false,
     "Object_Annotations": false,
     "Segmentation_Masks": false,
     "YOLO": false,
     "COCO": false
-  },
-    "SEG": {
+  },    
+"SEG": {
+    "NOISE_CM2": 0.038,
+    "MIN_LEAF_CM2": 0.04, 
+    "MIN_LEAF_LENGTH_CM": 0.04,
+    "MIN_LEAF_WIDTH_CM": 0.04, 
     "BACKGROUND_COLOR": "Black",
 
-    "GREEN_H_MIN": 38,
-    "GREEN_H_MAX": 78,
-    "GREEN_V_MIN": 60,
-    "YELLOW_H_MIN": 20,
-    "YELLOW_H_MAX": 40,
+    "GREEN_H_MIN": 26,
+    "GREEN_H_MAX": 93,
+    "GREEN_V_MIN": 120,
+    "GREEN_V_MAX": 255,
+    "GREEN_S_MIN": 120,
+    "GREEN_S_MAX": 255,
+    
+    "PURPLE_H_MIN": 95,
+    "PURPLE_H_MAX": 170,
+    "PURPLE_S_MIN": 30,
+    "PURPLE_V_MIN": 50,
+
+    "LAB_L_MIN": 0,
+    "LAB_L_MAX": 255,
+    "LAB_A_MIN": -128,
+    "LAB_A_MAX": 120,
+    "LAB_B_MIN": -128,
+    "LAB_B_MAX": 127,
+
+    "HSV_S_MIN": 0,
+    "HSV_S_MAX": 255,
+    "HSV_V_MIN": 71,
+    "HSV_V_MAX": 255,
+
+    "YELLOW_H_MIN": 30,
+    "YELLOW_H_MAX": 50,
+
     "BLACK_V_MIN": 0,
     "BLACK_V_MAX": 35,
+
     "WHITE_S_MIN": 0,
-    "WHITE_S_MAX": 25,
-    "WHITE_V_MIN": 200,
-    "WHITE_V_MAX": 255,
-    
-    "NOISE_CM2": 0.038,
-    "MIN_LEAF_CM2": 0.04        
+    "WHITE_S_MAX": 5,
+    "WHITE_V_MIN": 240,
+    "WHITE_V_MAX": 255
   }
 }
