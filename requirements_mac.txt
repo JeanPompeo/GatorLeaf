@@ -1,4 +1,4 @@
-# GatorLeaf requirements
+# GatorLeaf requirements for Mac
 # Compatible with Python 3.10.11
 
 # Build tools (must be first)

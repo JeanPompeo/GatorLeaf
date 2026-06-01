@@ -29,7 +29,6 @@ from typing import Optional
 import subprocess
 import re
 from PIL import Image, ImageOps
-from Quartz import CGMainDisplayID, CGDisplayPixelsWide, CGDisplayPixelsHigh
 
 
 # Global variables for persistent settings
@@ -1587,19 +1586,18 @@ def _get_screen_size():
     On macOS, attempt Quartz/CoreGraphics; on Linux, try xrandr; else fallback.
     """
     # macOS: Quartz/CoreGraphics
-    try:
-        if sys.platform == 'darwin':
-            try:
-                display_id = CGMainDisplayID()
-                w = CGDisplayPixelsWide(display_id)
-                h = CGDisplayPixelsHigh(display_id)
-                if int(w) > 0 and int(h) > 0:
-                    return int(w), int(h)
-            except Exception:
-                pass
-    except Exception:
-        pass
-
+    if sys.platform == 'darwin':
+        
+        try:
+            from Quartz import CGMainDisplayID, CGDisplayPixelsWide, CGDisplayPixelsHigh
+            display_id = Quartz.CGMainDisplayID()
+            w = Quartz.CGDisplayPixelsWide(display_id)
+            h = Quartz.CGDisplayPixelsHigh(display_id)
+            if int(w) > 0 and int(h) > 0:
+                return int(w), int(h)
+        except (ImportError, Exception):
+            pass
+    
     # Linux/X11: xrandr
     try:
         if sys.platform.startswith('linux'):
