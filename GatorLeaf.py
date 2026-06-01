@@ -28,6 +28,8 @@ import shutil
 from typing import Optional
 import subprocess
 import re
+from PIL import Image, ImageOps
+from Quartz import CGMainDisplayID, CGDisplayPixelsWide, CGDisplayPixelsHigh
 
 
 # Global variables for persistent settings
@@ -92,7 +94,7 @@ def read_image_with_orientation(path):
         pass
 
     # 2) Fallback: Pillow with EXIF orientation handling
-
+    try:
         pil_available = True
     except Exception:
         pil_available = False
@@ -940,15 +942,19 @@ def build_folder_name_from_pattern(date_yyyy_mm_dd, pattern=None, label_info=Non
                     field_cfg = next((f for f in CONFIG.get("SCHEMA_FIELDS", []) if f.get("name") == nm), None)
                     if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
                         minv, maxv = field_cfg.get("min", 1), field_cfg.get("max", 1)
-                        try:
-                            vals[f"L{i}"] = format_number_with_padding(int(v), minv, maxv)
-                        except Exception:
-                            vals[f"L{i}"] = v
+                        # Safely handle None/empty and non-integer values before calling int()
+                        if v is None or (isinstance(v, str) and v.strip() == ""):
+                            vals[f"L{i}"] = ""
+                        else:
+                            try:
+                                vals[f"L{i}"] = format_number_with_padding(int(v), minv, maxv)
+                            except Exception:
+                                vals[f"L{i}"] = str(v)
                     elif _is_date_label_name(nm):
                         canon = normalize_date_string(v)
-                        vals[f"L{i}"] = format_date_with_pattern(canon, out_date_fmt) if canon else v
+                        vals[f"L{i}"] = format_date_with_pattern(canon, out_date_fmt) if canon else ("" if v is None else str(v))
                     else:
-                        vals[f"L{i}"] = v
+                        vals[f"L{i}"] = "" if v is None else str(v)
     except Exception:
         pass
 
@@ -1063,14 +1069,14 @@ def build_filename_generic(date_yyyy_mm_dd, label_info, pattern):
                     if field_cfg and str(field_cfg.get("type")).upper() == "NUMERIC":
                         minv, maxv = field_cfg.get("min", 1), field_cfg.get("max", 1)
                         try:
-                            vals[f"L{i}"] = format_number_with_padding(int(v), minv, maxv)
+                            vals[f"L{i}"] = format_number_with_padding(int(v), minv, maxv) if v is not None else ""
                         except Exception:
-                            vals[f"L{i}"] = v
+                            vals[f"L{i}"] = "" if v is None else str(v)
                     elif _is_date_label_name(nm):
                         canon = normalize_date_string(v)
-                        vals[f"L{i}"] = format_date_with_pattern(canon, out_date_fmt) if canon else v
+                        vals[f"L{i}"] = format_date_with_pattern(canon, out_date_fmt) if canon else ("" if v is None else str(v))
                     else:
-                        vals[f"L{i}"] = v
+                        vals[f"L{i}"] = "" if v is None else str(v)
     except Exception:
         pass
 
@@ -1185,10 +1191,19 @@ def normalize_dynamic_schema():
                 entry["options"] = fcfg.get("OPTIONS") or fcfg.get("VALUES") or []
                 entry["colors"] = fcfg.get("COLORS") or {}
             elif ftype == "NUMERIC":
-                if fcfg.get("MIN") is not None:
-                    entry["min"] = int(fcfg.get("MIN"))
-                if fcfg.get("MAX") is not None:
-                    entry["max"] = int(fcfg.get("MAX"))
+                # Safely convert MIN/MAX to int if present
+                min_val = fcfg.get("MIN")
+                if min_val is not None:
+                    try:
+                        entry["min"] = int(min_val)
+                    except Exception:
+                        pass
+                max_val = fcfg.get("MAX")
+                if max_val is not None:
+                    try:
+                        entry["max"] = int(max_val)
+                    except Exception:
+                        pass
             elif ftype == "DATE":
                 entry["months"] = fcfg.get("MONTH_RANGE") or list(range(1, 13))
                 entry["years"]  = fcfg.get("YEAR_RANGE") or [2024, 2025, 2026]
@@ -1348,7 +1363,8 @@ def _load_qr_modules(debug: Optional["Debugger"] = None):
             sys.path.insert(0, meipass)
     else:
         try:
-            qr_dir = os.path.join(os.path.dirname(__file__), "QR_Code")
+            if not is_frozen():
+                qr_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "QR_Code")
         except Exception:
             qr_dir = None
         if qr_dir and os.path.isdir(qr_dir) and qr_dir not in sys.path:
@@ -1574,10 +1590,9 @@ def _get_screen_size():
     try:
         if sys.platform == 'darwin':
             try:
-                import Quartz
-                display_id = Quartz.CGMainDisplayID()
-                w = Quartz.CGDisplayPixelsWide(display_id)
-                h = Quartz.CGDisplayPixelsHigh(display_id)
+                display_id = CGMainDisplayID()
+                w = CGDisplayPixelsWide(display_id)
+                h = CGDisplayPixelsHigh(display_id)
                 if int(w) > 0 and int(h) > 0:
                     return int(w), int(h)
             except Exception:
@@ -1603,7 +1618,7 @@ def _get_screen_size():
 
 def _clamp_y_only(y, panel_h):
     """Clamp Y so the panel stays fully on screen; X is left unchanged elsewhere."""
-    _sw, sh = _get_screen_size()
+    sw, sh = _get_screen_size()
     return max(0, min(int(y), max(0, sh - int(panel_h))))
 
 def _clamp_position(x, y, w, h):
@@ -1612,16 +1627,6 @@ def _clamp_position(x, y, w, h):
     max_x = max(0, sw - int(w))
     max_y = max(0, sh - int(h))
     return max(0, min(int(x), max_x)), max(0, min(int(y), max_y))
-
-
-def _get_hidpi_scale():
-    """Internal high-DPI rendering scale for crisp text.
-    
-    This is intentionally not user-configurable; window sizing now adapts
-    to the current screen dimensions instead of a global UI.SCALE_FACTOR.
-    Return as integer to avoid float shape errors in NumPy.
-    """
-    return 2
 
 def _get_reference_max_size():
     ui = CONFIG.get("UI", {})
@@ -1637,25 +1642,7 @@ def _get_reference_max_size():
         print(f"DEBUG: Screen size detection failed: {e}")  # Add this
         pass
     return max_width, max_height
-"""
-def _get_reference_max_size():
-    """ """Return (max_width, max_height) for reference-style image windows.
 
-    All reference images (Image Label, calibration preview, mask review,
-    zoomed calibration) should use the same effective maximum size derived
-    from UI.REFERENCE_IMAGE_SIZE and clamped to a safe fraction of the
-    current screen. """
-"""
-    ui = CONFIG.get("UI", {})
-    max_width, max_height = ui.get("REFERENCE_IMAGE_SIZE", (2400, 1800))
-    try:
-        sw, sh = _get_screen_size()
-        max_width = min(int(max_width), max(200, int(sw * 0.95)))
-        max_height = min(int(max_height), max(150, int(sh * 0.95)))
-    except Exception:
-        pass
-    return max_width, max_height
-"""
 def _fit_for_reference(img, max_width=None, max_height=None):
     """Fit image for reference display using CONFIG settings."""
     # Use CONFIG settings if no parameters provided
@@ -1704,6 +1691,7 @@ def _fit_panel_to_screen(width, height, margin_ratio=0.9):
     except Exception:
         pass
     return int(width), int(height)
+
 def calculate_text_size(text, font_size, scale_factor=1):
     """Calculate text size with current font settings."""
     viz = CONFIG.get("VISUALIZATION", {})
@@ -2039,9 +2027,9 @@ def custom_roi_selection(window_name, img, instruction_text="Click & drag box ar
     cv.imshow(window_name, img_base_with_text)
     
     drawing = False
-    start_point = None
-    current_rect = None
-    last_mouse_pos = None  # Track last known mouse position
+    start_point: tuple[int, int] | None = None
+    current_rect: tuple[int, int, int, int] | None = None
+    last_mouse_pos: tuple[int, int] | None = None  # Track last known mouse position
     
     def mouse_callback(event, x, y, flags, param):
         nonlocal drawing, start_point, current_rect, last_mouse_pos
@@ -2061,7 +2049,7 @@ def custom_roi_selection(window_name, img, instruction_text="Click & drag box ar
                 cv.imshow(window_name, img_copy)
                 
         elif event == cv.EVENT_LBUTTONUP:
-            if drawing and start_point:
+            if drawing and start_point is not None:
                 drawing = False
                 end_point = (x, y)
                 x1, y1 = start_point
@@ -2083,7 +2071,7 @@ def custom_roi_selection(window_name, img, instruction_text="Click & drag box ar
         
         if key in [10, 13]:  # ENTER
             # If currently drawing (cursor went off-screen), complete with last known position
-            if drawing and start_point and last_mouse_pos:
+            if drawing and start_point is not None and last_mouse_pos is not None:
                 drawing = False
                 x1, y1 = start_point
                 x2, y2 = last_mouse_pos
@@ -2138,9 +2126,9 @@ def custom_multi_roi_selection(window_name, img, instruction_text="Select areas,
     cv.imshow(window_name, img_base_with_text)
     
     drawing = False
-    start_point = None
-    current_rect = None
-    last_mouse_pos = None  # Track last known mouse position
+    start_point: tuple[int, int] | None = None
+    current_rect: tuple[int, int, int, int] | None = None
+    last_mouse_pos: tuple[int, int] | None = None  # Track last known mouse position
     selected_rects = []
     
     def redraw_all_selections():
@@ -4364,16 +4352,16 @@ def segment_leaves(img, Pixel_ratio, exclude_mask=None, debug: Optional[Debugger
             preset = {}  # Use config defaults for mixed/unknown backgrounds
         
         # Apply preset values with config fallbacks (min/max pairs)
-        HSV_S_MIN = int(preset.get("HSV_S_MIN", seg.get("HSV_S_MIN", 30)))
-        HSV_S_MAX = int(preset.get("HSV_S_MAX", seg.get("HSV_S_MAX", 255)))
-        HSV_V_MIN = int(preset.get("HSV_V_MIN", seg.get("HSV_V_MIN", 50)))
-        HSV_V_MAX = int(preset.get("HSV_V_MAX", seg.get("HSV_V_MAX", 255)))
-        BLACK_V_MIN = int(preset.get("BLACK_V_MIN", seg.get("BLACK_V_MIN", 0)))
-        BLACK_V_MAX = int(preset.get("BLACK_V_MAX", seg.get("BLACK_V_MAX", 35)))
-        WHITE_S_MIN = int(preset.get("WHITE_S_MIN", seg.get("WHITE_S_MIN", 0)))
-        WHITE_S_MAX = int(preset.get("WHITE_S_MAX", seg.get("WHITE_S_MAX", 35)))
-        WHITE_V_MIN = int(preset.get("WHITE_V_MIN", seg.get("WHITE_V_MIN", 200)))
-        WHITE_V_MAX = int(preset.get("WHITE_V_MAX", seg.get("WHITE_V_MAX", 255)))
+        HSV_S_MIN = int(preset.get("HSV_S_MIN") or seg.get("HSV_S_MIN") or 30)
+        HSV_S_MAX = int(preset.get("HSV_S_MAX") or seg.get("HSV_S_MAX") or 255)
+        HSV_V_MIN = int(preset.get("HSV_V_MIN") or seg.get("HSV_V_MIN") or 50)
+        HSV_V_MAX = int(preset.get("HSV_V_MAX") or seg.get("HSV_V_MAX") or 255)
+        BLACK_V_MIN = int(preset.get("BLACK_V_MIN") or seg.get("BLACK_V_MIN") or 0)
+        BLACK_V_MAX = int(preset.get("BLACK_V_MAX") or seg.get("BLACK_V_MAX") or 35)
+        WHITE_S_MIN = int(preset.get("WHITE_S_MIN") or seg.get("WHITE_S_MIN") or 0)
+        WHITE_S_MAX = int(preset.get("WHITE_S_MAX") or seg.get("WHITE_S_MAX") or 35)
+        WHITE_V_MIN = int(preset.get("WHITE_V_MIN") or seg.get("WHITE_V_MIN") or 200)
+        WHITE_V_MAX = int(preset.get("WHITE_V_MAX") or seg.get("WHITE_V_MAX") or 255)
         
         # Apply Lab settings from preset if available
         if "LAB_NEUTRAL_A_ABS_MAX" in preset:

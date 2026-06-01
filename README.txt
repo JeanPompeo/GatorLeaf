@@ -1,210 +1,483 @@
-GatorLeaf — config.JSON Instruction Manual
+================================================================================
+GATORLEAF — config.JSON INSTRUCTION MANUAL
+================================================================================
 
-This README is a complete reference for every setting available in `config.JSON`. Use it to understand allowed values, default behaviors, and how each setting impacts the app.
+This file is a complete reference for every setting available in config.JSON.
+Use it to understand allowed values, default behaviors, and how each setting
+impacts the app.
 
-File Location
-- `config.JSON` lives at the project root. The app reads it at startup.
 
-Top-Level Sections
-- `INPUTS`: Defines label fields, their input modes, and UI choices.
-- `FILE_FORMATS`: Defines input/output filename patterns and date/time formatting.
-- `CALIB`: Calibration length and persistence settings.
-- `UI`: UI sizing options.
-- `ANNOTATIONS`: Non-leaf object classes for object annotation outputs.
-- `COLORS`: UI colors for label selection buttons.
-- `PATHS`: Output file names and output subdirectories.
-- `RUN`: Runtime switches (labeling, calibration mode, backups, overlays, etc.).
-- `ML_TRAINING_OUTPUTS`: Output switches for ML training artifacts.
+FILE LOCATION
+================================================================================
 
-----------------------------------------
+    config.JSON lives in the same folder as GatorLeaf.app (your working
+    folder). The app reads it automatically at startup. If no config.JSON
+    is present, GatorLeaf uses its built-in default settings.
+
+    Your Working Folder/
+    |-- GatorLeaf.app
+    |-- config.JSON        <- place it here
+    |-- Inputs/
+    |-- Outputs/
+
+
+TOP-LEVEL SECTIONS
+================================================================================
+
+    INPUTS             Defines label fields, input modes, and UI choices
+    FILE_FORMATS       Defines filename patterns and date/time formatting
+    CALIB              Calibration length and persistence settings
+    UI                 UI window sizing options
+    COLORS             UI button colors for label selection panels
+    PATHS              Output filenames and subdirectory names
+    RUN                Runtime switches (labeling, outputs, backups, etc.)
+    ML_TRAINING_OUTPUTS Output switches for ML training artifacts
+    SEG                Segmentation tuning parameters
+
+
+
+
+
+################################################################################
 1) INPUTS
-----------------------------------------
-Purpose: Controls label fields shown in the UI and the options/ranges for each field.
+################################################################################
 
-Keys
-- `LABELS` (array of strings)
-  - The ordered list of label field names stored in csv data and used in UI panels.
-  - Example: `["Date", "Exp_ID", "Exp_Num", "Genotype", "Sample", "Location", "Replicate", "Harvest_Time"]`
-  - The above labels will be referenced in order as L1 - Ln where you can include n number of labels
-  - L1 = Date, L2 = Exp_ID, L3 = Exp_Num, L4 = Genotype, L5 = Sample, L6  = Location, L7 = Replicate, L8 = Harvest_Time
+Defines label fields shown in the UI and the options or ranges for each field.
 
-Label field definitions
-- `L1`, `L2`, `L3`, ...
-  - Each `Lx` defines the input mode and values for the label at the same index in `LABELS`.
-  - Format: `[TYPE, ...VALUES]`
-  - Supported types:
-    - `DATE`: Uses date selection panels (year/month/day) based on `YEAR/MONTH/DAY` ranges (date)
-    - `DISCRETE`: Shows a selection panel using the provided options (strings).
-    - `NUMERIC`: Shows a numeric entry panel with min/max (numeric).
-    - `TIME`: Uses time selection panels (hour/minute/second) based on `HOUR:MINUTE:SECOND` ranges (time)
-  - Examples from current config:
-    - `"L1": ["DATE", "MONTH", "DAY", "YEAR"]` (uses the date ranges below)       (L1 = Date)
-    - `"L2": ["DISCRETE", "Control", "Treatment"]`                                  (L2 = Exp_ID)
-    - `"L3": ["NUMERIC", 1, 34]`                                                    (L3 = Exp_Num)
-    - `"L4": ["DISCRETE", "B. napus", "B. juncea", "B. olaraceae", "B. rapa"]`      (L4 = Genotype)
-    - `"L5": ["NUMERIC", 1, 10]`                                                    (L5 = Sample)
-    - `"L6": ["DISCRETE", "Control", "Field", "Hoophouse", "Growth Chamber"]`       (L6 = Location)
-    - `"L7": ["NUMERIC", 1, 5]`                                                     (L7 = Replicate)
-    - `"L8": ["TIME", "HOUR", "MINUTE", "SECOND"]`                                (L8 = Harvest_Time)
+--------------------------------------------------------------------------------
+LABELS
+--------------------------------------------------------------------------------
+
+    Key:    LABELS
+    Type:   array of strings
+    The ordered list of label field names stored in CSV data and shown in UI
+    panels. Labels are referenced in order as L1 to Ln.
+
+    Example:
+        "LABELS": ["Date", "Exp_ID", "Exp_Num", "Cultivar", "Sample_Num"]
+
+        L1 = Date
+        L2 = Exp_ID
+        L3 = Exp_Num
+        L4 = Cultivar
+        L5 = Sample_Num
+
+--------------------------------------------------------------------------------
+LABEL FIELD DEFINITIONS  (L1, L2, L3, ...)
+--------------------------------------------------------------------------------
+
+    Each Lx entry defines the input mode and values for the label at the
+    same position in LABELS.
+
+    Format:  [TYPE, ...VALUES]
+
+    Supported types:
+
+        DATE      Uses date selection panels (year/month/day).
+                  Ranges are drawn from YEAR, MONTH, DAY keys below.
+                  Example: "L1": ["DATE", "MONTH", "DAY", "YEAR"]
+
+        DISCRETE  Shows a button-selection panel using the provided options.
+                  Example: "L2": ["DISCRETE", "GH", "TNFT"]
+
+        NUMERIC   Shows a numeric entry panel with min and max values.
+                  Example: "L3": ["NUMERIC", 1, 34]
+
+        TIME      Uses time selection panels (hour/minute/second).
+                  Ranges are drawn from HOUR, MINUTE, SECOND keys below.
+                  Example: "L8": ["TIME", "HOUR", "MINUTE", "SECOND"]
+
+    Current config example:
+
+        "L1": ["DATE",     "MONTH", "DAY", "YEAR"]          -> Date
+        "L2": ["DISCRETE", "GH", "TNFT"]                    -> Exp_ID
+        "L3": ["NUMERIC",  1, 34]                            -> Exp_Num
+        "L4": ["DISCRETE", "FLB", "CAB", "SGC", ...]        -> Cultivar
+        "L5": ["NUMERIC",  1, 120]                           -> Sample_Num
+
+--------------------------------------------------------------------------------
+DATE / TIME RANGES
+--------------------------------------------------------------------------------
+
+    YEAR      List of year values shown in the Year selection panel.
+    MONTH     List of month values shown in the Month selection panel.
+    DAY       List of day values shown in the Day selection panel.
+    HOUR      List of hour values shown in the Hour selection panel.
+    MINUTE    List of minute values shown in the Minute selection panel.
+    SECOND    List of second values shown in the Second selection panel.
+
+--------------------------------------------------------------------------------
+DISTRIBUTION / METRICS COLUMNS
+--------------------------------------------------------------------------------
+
+    Key:    LEAF_NUMBER_COLUMNS
+    Type:   integer
+    Maximum number of L-columns written to Leaf_Distribution, Leaf_Length,
+    and Leaf_Width CSVs.
+
+--------------------------------------------------------------------------------
+CSV HEADERS BASED ON CURRENT CONFIG
+--------------------------------------------------------------------------------
+
+    Headers:
+        File, New_File, Date, Exp_ID, Exp_Num, Cultivar, Sample_Num,
+        Leaf_Num, Leaf_Area, Pixel_cm_ratio, QR_detected, QR_count,
+        Flagged, Date_Analyzed
+
+    Data types:
+        str, str, date, str, num, str, num,
+        num, num, num, bool, num,
+        bool, datetime
 
 
-Example of Leaf_Area.csv headers and data types based on the `LABELS` and `TYPE` define above
-- `File,New_File,Date,Exp_ID,Exp_Num,Cultivar,Sample,Location,Replicate,Harvest_Time,Leaf_Num,Leaf_Area,Pixel_cm_ratio,QR_detected,QR_count,Flagged,Date_Analyzed`
-- `str,str,date,str,num,str,num,str,num,time,num,num,num,bool,num,bool,datetime`
-
-Date/time ranges
-- `YEAR`: Selection of year values shown in the Year panel.
-- `MONTH`: Selection month values shown in the Month picker.
-- `DAY`: Selection day values shown in the Day picker.
-- `HOUR`: Selection hour values shown in the Hour picker.
-- `MINUTE`: Selection minute values shown in the Minue picker.
-- `SECOND`: Selection second values shown in the Second picker.
-
-Distribution/metrics columns
-- `LEAF_NUMBER_COLUMNS` (int)
-  - Maximum number of L-columns written to Leaf_Distribution/Length/Width CSVs.
-
-----------------------------------------
+################################################################################
 2) FILE_FORMATS
-----------------------------------------
-Purpose: Controls date/time formatting and input/output filename parsing.
+################################################################################
 
-Data formatting
-- `DATE_DATA_FORMAT` (string)
-  - CSV date output format, using tokens like `YYYY`, `MM`, `DD`.
-- `DATETIME_DATA_FORMAT` (string)
-  - CSV datetime output format, using tokens like `YYYY-MM-DD HH:MM:SS`.
+Controls date/time formatting and input/output filename parsing.
 
-Input filename parsing
-- `INPUT_DATE_FORMAT` (string or array)
-  - Accepted date formats when parsing dates from filenames.
-- `INPUT_FILENAME_PATTERN` (string)
-  - Token pattern for filename parsing, using `{L1}`, `{L2}`, ...
-  - Example: `{L1}_{L2}{L3}_{L4}_{L5}_{L6}_{L7}.jpg`
+--------------------------------------------------------------------------------
+DATA FORMATTING
+--------------------------------------------------------------------------------
 
-Output naming
-- `OUTPUT_DATE_FORMAT` (string or array)
-  - Output date format used in filename generation.
-- `OUTPUT_FOLDER_PATTERN` (string)
-  - Output subfolder name pattern using `{L1}`, `{L2}`, etc.
-- `OUTPUT_FILE_NAME_PATTERN` (string)
-  - Output filename pattern using `{L1}`, `{L2}`, etc.
+    DATE_DATA_FORMAT
+        CSV date output format using tokens YYYY, MM, DD.
 
-----------------------------------------
+    DATETIME_DATA_FORMAT
+        CSV datetime output format.
+
+--------------------------------------------------------------------------------
+INPUT FILENAME PARSING
+--------------------------------------------------------------------------------
+
+    INPUT_DATE_FORMAT
+        Accepted date formats when parsing dates from filenames.
+
+    INPUT_FILENAME_PATTERN
+        Token pattern used to parse label values from input filenames.
+        Uses {L1}, {L2}, ... tokens matching the LABELS order.
+
+--------------------------------------------------------------------------------
+OUTPUT NAMING
+--------------------------------------------------------------------------------
+
+    OUTPUT_DATE_FORMAT
+        Date format used when building output filenames and folder names.
+
+    OUTPUT_FOLDER_PATTERN
+        Output subfolder name pattern using {L1}, {L2}, etc.
+
+    OUTPUT_FILE_NAME_PATTERN
+        Output filename pattern using {L1}, {L2}, etc.
+
+
+################################################################################
 3) CALIB
-----------------------------------------
-Purpose: Controls calibration length and persistence behavior.
+################################################################################
 
-Keys
-- `CALIBRATION_LENGTH_CM` (number)
-  - Real-world length used during calibration (cm).
-- `PERSISTENT_CALIBRATION` (boolean)
-  - When true, reuses last successful px/cm across images until changed.
+Controls calibration length and persistence behavior.
 
-----------------------------------------
+--------------------------------------------------------------------------------
+
+    MANUAL_CALIBRATION_CM
+        Type:    number
+        The real-world length of the ruler or calibration card used during
+        manual calibration (cm).
+
+    QR_CODE_CALIBRATION
+        Type:    boolean
+        If true, attempts QR-based auto-calibration before falling back
+        to manual calibration.
+
+    PERSISTENT_CALIBRATION
+        Type:    boolean
+        If true, reuses the last successful px/cm ratio across images in
+        the same session until manually changed.
+
+
+################################################################################
 4) UI
-----------------------------------------
-Purpose: Controls base UI sizing.
+################################################################################
 
-Keys
-- `REFERENCE_IMAGE_SIZE` (array [width, height])
-  - Maximum size for reference image windows.
+Controls base UI window sizing.
 
-----------------------------------------
+--------------------------------------------------------------------------------
+
+    REFERENCE_IMAGE_SIZE
+        Type:    array [width, height]
+        Maximum pixel dimensions for reference image windows. Reduce if
+        windows appear too large for your screen.
+
+
+################################################################################
 5) COLORS
-----------------------------------------
-Purpose: Controls button colors for UI panels.
+################################################################################
 
-Keys
-- `Update_Buttons` (array of hex strings)
-  - Button colors for update options in the Image Label panel.
-- `L2`, `L4`, `L5`, `L6` (arrays of hex strings)
-  - Button colors corresponding to each option for those labels.
-  - Use one color per option in the label’s `Lx` list.
+Controls button colors for label selection panels in the UI. Colors are
+defined as hex strings (e.g., "#3c78b4").
 
-----------------------------------------
+--------------------------------------------------------------------------------
+
+    Labels
+        Array of hex colors used for the Update buttons in the Image Label
+        panel. One color per label field in LABELS order.
+
+    L2, L4, L5, L6, ...
+        Arrays of hex colors for each option in that label's DISCRETE list.
+        Provide one color per option.
+
+    NOTE: The number of colors must match the number of options in the
+    corresponding Lx DISCRETE list.
+
+
+################################################################################
 6) PATHS
-----------------------------------------
-Purpose: Sets CSV filenames and output subdirectories.
+################################################################################
 
-CSV filenames
-- `LEAF_AREA_CSV_NAME`
-- `LEAF_DIST_CSV_NAME`
-- `LEAF_LENGTH_CSV_NAME`
-- `LEAF_WIDTH_CSV_NAME`
+Sets output CSV filenames and output subdirectory names. All paths are
+relative to the Outputs folder.
 
-Output subdirectories
-- `OVERLAY_SUBDIR`
-- `DEBUG_SUBDIR`
+--------------------------------------------------------------------------------
+CSV FILENAMES
+--------------------------------------------------------------------------------
 
-ML training subdirectories
-- `TRAINING_SUBDIR`
-- `OBJECTS_SUBDIR`
-- `MASKS_SUBDIR`
-- `CONTOURS_SUBDIR`
-- `YOLO_SUBDIR`
-- `COCO_SUBDIR`
+    LEAF_AREA_CSV_NAME
+    LEAF_DIST_CSV_NAME
+    LEAF_LENGTH_CSV_NAME
+    LEAF_WIDTH_CSV_NAME
 
-----------------------------------------
+--------------------------------------------------------------------------------
+OUTPUT SUBDIRECTORIES
+--------------------------------------------------------------------------------
+
+    OVERLAY_SUBDIR
+    DEBUG_SUBDIR
+
+--------------------------------------------------------------------------------
+ML TRAINING SUBDIRECTORIES
+--------------------------------------------------------------------------------
+
+    TRAINING_SUBDIR
+    OBJECTS_SUBDIR
+    MASKS_SUBDIR
+    CONTOURS_SUBDIR
+    YOLO_SUBDIR
+    COCO_SUBDIR
+
+
+################################################################################
 7) RUN
-----------------------------------------
-Purpose: Feature toggles for labeling, calibration, outputs, and backups.
+################################################################################
 
-Core behavior
-- `LABEL_IMAGES` (boolean)
-  - If true, shows label input UI for each image.
-- `QR_CODE_CALIBRATION` (boolean)
-  - If true, attempts QR-based calibration before manual calibration.
-- `BACKUP_FREQUENCY` (string)
-  - Minimum time between CSV backups (e.g., `"10min"`).
+Feature toggles for labeling, calibration, outputs, and backups.
 
-Output controls
-- `SAVE_DEBUG` (boolean)
-  - Save debug panels.
-- `SAVE_OVERLAYS` (boolean)
-  - Save overlays.
-- `SAVE_ML_DATA` (boolean)
-  - Save ML training outputs (gated by `ML_TRAINING_OUTPUTS`).
-- `RENAME_EXISTING_FILE` (boolean)
-  - Rename source images in-place to the generated `New_File`.
+--------------------------------------------------------------------------------
+CORE BEHAVIOR
+--------------------------------------------------------------------------------
 
-Backups
-- `BACKUP_LEAF_AREA` (boolean)
-- `BACKUP_LEAF_DISTRIBUTION` (boolean)
-- `BACKUP_LEAF_LENGTH` (boolean)
-- `BACKUP_LEAF_WIDTH` (boolean)
+    LABEL_IMAGES
+        Type:    boolean
+        If true, shows the label input UI panel for each image. If false,
+        attempts to parse labels from filenames only.
 
-----------------------------------------
+    SELECT_MASKS
+        Type:    boolean
+        If true, prompts the user to manually draw exclusion regions
+        (calibration card, labels, bags) before segmentation.
+
+    BACKUP_FREQUENCY
+        Type:    string (minutes)
+        Minimum time between automatic CSV backups. Accepts formats like
+        "10min", "5", "1min".
+
+--------------------------------------------------------------------------------
+OUTPUT CONTROLS
+--------------------------------------------------------------------------------
+
+    SAVE_DEBUG
+        Type:    boolean
+        If true, saves side-by-side debug panels (original image and leaf
+        mask) to the Debug subfolder.
+
+    SAVE_OVERLAYS
+        Type:    boolean
+        If true, saves annotated overlay images showing detected leaves to
+        the Overlays subfolder.
+
+    SAVE_ML_DATA
+        Type:    boolean
+        If true, saves ML training outputs as controlled by the
+        ML_TRAINING_OUTPUTS flags.
+
+    RENAME_EXISTING_FILE
+        Type:    boolean
+        If true, renames source images in-place to the filename generated
+        from OUTPUT_FILE_NAME_PATTERN.
+
+--------------------------------------------------------------------------------
+CSV BACKUPS
+--------------------------------------------------------------------------------
+
+    BACKUP_LEAF_AREA
+    BACKUP_LEAF_DISTRIBUTION
+    BACKUP_LEAF_LENGTH
+    BACKUP_LEAF_WIDTH
+
+    When true, a timestamped backup copy of that CSV is saved to
+    Outputs/Backup_Data/ at the interval set by BACKUP_FREQUENCY.
+
+
+################################################################################
 8) ML_TRAINING_OUTPUTS
-----------------------------------------
-Purpose: Fine-grained control of ML outputs saved when `SAVE_ML_DATA` is true.
+################################################################################
 
-Keys
-- `Leaf_Contours` (boolean)
-- `Object_Annotations` (boolean)
-- `Segmentation_Masks` (boolean)
-- `YOLO` (boolean)
-- `COCO` (boolean)
+Fine-grained control of which ML training artifacts are saved when
+RUN.SAVE_ML_DATA is true.
+
+--------------------------------------------------------------------------------
+
+    Leaf_Contours
+        Saves individual leaf contour outlines as JSON and visualization
+        images to the Leaf_Contours subfolder.
+
+    Object_Annotations
+        Saves bounding box annotations for calibration cards and labels as
+        JSON and visualization images to Object_Annotations.
+
+    Segmentation_Masks
+        Saves binary leaf masks as PNG images to Segmentation_Masks.
+
+    YOLO
+        Saves YOLO-format bounding box label files (.txt) to the YOLO
+        subfolder.
+
+    COCO
+        Saves COCO-format annotation JSON files to the COCO subfolder.
 
 
+################################################################################
+9) SEG
+################################################################################
 
-----------------------------------------
-Examples
-----------------------------------------
-1) Disable QR calibration
-   - Set `RUN.QR_CODE_CALIBRATION` to `false`.
+Controls leaf segmentation parameters. These are the most impactful settings
+for detection accuracy and should be tuned to match your imaging setup.
 
-2) Change label options
-   - Edit `INPUTS.LABELS` and corresponding `INPUTS.Lx` entries.
-   - Update `COLORS.Lx` arrays to match option count.
+--------------------------------------------------------------------------------
+SIZE THRESHOLDS
+--------------------------------------------------------------------------------
 
-3) Limit leaf columns in distribution CSV
-   - Reduce `INPUTS.LEAF_NUMBER_COLUMNS`.
+    NOISE_CM2
+        Minimum component area to keep before merging (cm2). Components
+        smaller than this are removed as noise.
 
-----------------------------------------
-Notes
-----------------------------------------
-- Label fields are entirely driven by `INPUTS.LABELS` and matching `L1..Ln` specs.
-- Filename parsing and output naming rely on `FILE_FORMATS` patterns using `{L1}`, `{L2}`, etc.
-- QR calibration stores `QR_detected` and `QR_count` in output CSVs.
+    MIN_LEAF_CM2
+        Minimum final leaf area (cm2). Leaves smaller than this are
+        excluded from results.
 
+    MIN_LEAF_LENGTH_CM
+        Minimum leaf length (cm). Leaves shorter than this are excluded.
+
+    MIN_LEAF_WIDTH_CM
+        Minimum leaf width (cm). Leaves narrower than this are excluded.
+
+--------------------------------------------------------------------------------
+BACKGROUND
+--------------------------------------------------------------------------------
+
+    BACKGROUND_COLOR
+        Tells the segmentation pipeline what kind of background to expect.
+        Options:  "Black"  "White"  "Auto"
+        "Auto" detects background type from image corner brightness.
+
+--------------------------------------------------------------------------------
+HSV THRESHOLDS  (base saturation and brightness)
+--------------------------------------------------------------------------------
+
+    HSV_S_MIN / HSV_S_MAX     Saturation range (0-255).
+    HSV_V_MIN / HSV_V_MAX     Brightness range (0-255).
+
+--------------------------------------------------------------------------------
+HUE BANDS  (which colors are considered leaf tissue)
+--------------------------------------------------------------------------------
+
+    OpenCV hue range: 0-180
+        Red = 0/180,  Yellow = 30,  Green = 60,  Cyan = 90,
+        Blue = 120,   Magenta = 150
+
+    GREEN band:
+        GREEN_H_MIN / GREEN_H_MAX     Hue range.
+        GREEN_V_MIN / GREEN_V_MAX     Brightness range.
+        GREEN_S_MIN / GREEN_S_MAX     Saturation range.
+
+    YELLOW band:
+        YELLOW_H_MIN / YELLOW_H_MAX   Hue range.
+
+    PURPLE band:
+        PURPLE_H_MIN / PURPLE_H_MAX   Hue range.
+        PURPLE_S_MIN                  Minimum saturation.
+        PURPLE_V_MIN                  Minimum brightness.
+
+--------------------------------------------------------------------------------
+EXCLUSION RANGES  (colors to remove regardless of hue band)
+--------------------------------------------------------------------------------
+
+    BLACK exclusion:
+        BLACK_V_MIN / BLACK_V_MAX     Brightness range treated as black.
+
+    WHITE exclusion:
+        WHITE_S_MIN / WHITE_S_MAX     Saturation range treated as white.
+        WHITE_V_MIN / WHITE_V_MAX     Brightness range treated as white.
+
+--------------------------------------------------------------------------------
+LAB COLOR SPACE GATING
+--------------------------------------------------------------------------------
+
+    Provides additional color filtering in L*a*b* space on top of HSV.
+    Values use centered a* and b* ranges (-128 to 127).
+
+    LAB_L_MIN / LAB_L_MAX     Lightness range.
+    LAB_A_MIN / LAB_A_MAX     a* range.
+    LAB_B_MIN / LAB_B_MAX     b* range.
+
+
+################################################################################
+EXAMPLES
+################################################################################
+
+    1) Disable QR calibration
+       Set CALIB.QR_CODE_CALIBRATION to false.
+
+    2) Change label fields and options
+       Edit INPUTS.LABELS to add or rename fields.
+       Add or update the matching L1..Ln entries with the new type and values.
+       Update COLORS.Lx arrays to match the new option count.
+
+    3) Limit leaf columns in distribution CSV
+       Reduce INPUTS.LEAF_NUMBER_COLUMNS to the maximum expected leaf count.
+
+    4) Speed up processing by skipping ML outputs
+       Set RUN.SAVE_ML_DATA to false.
+
+    5) Adjust for white background imaging
+       Set SEG.BACKGROUND_COLOR to "White" or "Auto".
+
+
+################################################################################
+NOTES
+################################################################################
+
+    - Label fields are entirely driven by INPUTS.LABELS and matching L1..Ln
+      definitions. Adding a new label requires both a new entry in LABELS and
+      a corresponding Lx definition.
+
+    - Filename parsing and output naming rely on FILE_FORMATS patterns using
+      {L1}, {L2}, etc. tokens. The token count must match LABELS length.
+
+    - QR calibration stores QR_detected and QR_count in output CSVs regardless
+      of whether QR calibration succeeded.
+
+    - SEG parameters are the most experiment-specific settings. If leaves are
+      being missed or background is being detected as leaves, start by tuning
+      BACKGROUND_COLOR, the GREEN hue band, and the HSV brightness thresholds.
+
+################################################################################

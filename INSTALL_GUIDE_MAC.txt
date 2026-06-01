@@ -1,0 +1,86 @@
+================================================================================
+GATORLEAF - INSTALLATION GUIDE
+================================================================================
+
+
+--------------------------------------------------------------------------------
+MACOS INSTALLATION
+--------------------------------------------------------------------------------
+
+
+STEP 1: DOWNLOAD
+________________
+
+Download GatorLeaf.app.zip and unzip it by double-clicking the file.
+
+
+STEP 2: REMOVE MACOS SECURITY RESTRICTIONS
+___________________________________________
+
+Since GatorLeaf is not distributed through the Mac App Store, macOS will block
+it from opening by default. To fix this, open Terminal and run the following
+command.
+
+    ##########################################################################
+    ## REPLACE WITH THE PATH TO YOUR APP:
+
+    xattr -cr ~/PATH_TO_THE_APP/GatorLeaf.app
+
+    ## EXAMPLES:
+    xattr -cr ~/Desktop/GatorLeaf_Mac/GatorLeaf.app
+    xattr -cr ~/Desktop/GatorLeaf_Mac_Intel/GatorLeaf.app
+    ##########################################################################
+
+
+STEP 3: OPEN GATORLEAF
+_______________________
+
+Double-click GatorLeaf.app to launch.
+
+If macOS still shows a warning saying the app is from an unidentified developer:
+
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+"GatorLeaf is damaged and can't be opened"
+------------------------------------------
+Run the Terminal command in Step 2 above. This is the most common issue and
+the command resolves it completely.
+
+
+"Python.framework is damaged" or repeated security dialogs
+----------------------------------------------------------
+This means the quarantine attribute was not fully cleared. Run the command
+again, making sure to include the -r flag, which clears restrictions
+recursively through all files inside the app:
+
+    xattr -cr ~/Downloads/GatorLeaf.app
+
+
+The app opens but cannot find my images
+----------------------------------------
+Make sure your Inputs folder is in the same directory as GatorLeaf.app itself,
+not inside the app bundle.
+
+
+The app opens but immediately closes
+-------------------------------------
+Open Terminal, drag GatorLeaf.app into the Terminal window, and press Enter.
+This runs the app through Terminal so any error messages are visible. Please
+include those messages if reporting an issue.
+
+
+
+================================================================================
+QUESTIONS OR ISSUES
+================================================================================
+
+Please open an issue on the GatorLeaf GitHub page and include any error
+messages you see in Terminal.
+
+    https://github.com/JeanPompeo/GatorLeaf/releases/tag/v2.0.0
+
+================================================================================
